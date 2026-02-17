@@ -220,9 +220,18 @@ def upload_segment_video(
     # Best-effort extract last frame on upload, so the frontend can display it immediately.
     try:
         frame_out = frame_path(project_id, index, ext=".jpg")
+        # Avoid leaving a stale frame on disk if extraction fails for the new upload.
+        try:
+            frame_out.unlink()
+        except FileNotFoundError:
+            pass
         last_frame = extract_last_frame(str(dst), frame_out)
         seg.last_frame_path = str(last_frame)
     except Exception as e:
+        try:
+            frame_out.unlink()
+        except Exception:
+            pass
         warnings.append(f"Failed to extract last frame: {str(e)}")
 
     seg.video_path = str(dst)
