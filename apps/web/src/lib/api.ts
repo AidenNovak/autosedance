@@ -4,6 +4,7 @@ export type Segment = {
   video_prompt: string;
   status: string;
   video_description?: string | null;
+  warnings?: string[] | null;
   video_path?: string | null;
   last_frame_path?: string | null;
   video_url?: string | null;
@@ -131,6 +132,12 @@ export async function uploadVideo(projectId: string, index: number, file: File):
   return (await res.json()) as Segment;
 }
 
+export async function extractFrame(projectId: string, index: number): Promise<Segment> {
+  return req<Segment>(`/api/projects/${projectId}/segments/${index}/extract_frame`, {
+    method: "POST"
+  });
+}
+
 export async function analyzeSegment(projectId: string, index: number): Promise<Project> {
   return req<Project>(`/api/projects/${projectId}/segments/${index}/analyze`, {
     method: "POST"
@@ -144,4 +151,3 @@ export async function assemble(projectId: string): Promise<Project> {
 export function backendUrl(): string {
   return BASE;
 }
-

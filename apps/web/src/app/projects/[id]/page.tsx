@@ -9,6 +9,7 @@ import {
   analyzeSegment,
   assemble,
   backendUrl,
+  extractFrame,
   generateFullScript,
   generateSegment,
   getProject,
@@ -36,6 +37,7 @@ export default function ProjectPage() {
   const [fullDraft, setFullDraft] = useState("");
   const [segScriptDraft, setSegScriptDraft] = useState("");
   const [segPromptDraft, setSegPromptDraft] = useState("");
+  const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
 
   async function refresh() {
     setLoading(true);
@@ -84,10 +86,12 @@ export default function ProjectPage() {
     if (!currentSegment) {
       setSegScriptDraft("");
       setSegPromptDraft("");
+      setUploadWarnings([]);
       return;
     }
     setSegScriptDraft(currentSegment.segment_script || "");
     setSegPromptDraft(currentSegment.video_prompt || "");
+    setUploadWarnings([]);
   }, [currentSegment?.index, currentSegment?.segment_script, currentSegment?.video_prompt]);
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -129,6 +133,23 @@ export default function ProjectPage() {
   if (!project) return null;
 
   const allCompleted = project.segments.length === project.num_segments && project.segments.every((s) => s.status === "completed");
+
+  async function downloadFrame(url: string, filename: string) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  }
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -309,7 +330,8 @@ export default function ProjectPage() {
                     const f = e.target.files?.[0];
                     if (!f) return;
                     run("upload", async () => {
-                      await uploadVideo(projectId, currentIndex, f);
+                      const seg = await uploadVideo(projectId, currentIndex, f);
+                      setUploadWarnings((seg.warnings || []).filter((w): w is string => typeof w === "string" && w.length > 0));
                       await refresh();
                     });
                   }}
@@ -322,6 +344,45 @@ export default function ProjectPage() {
             ) : (
               <div className="muted">No uploaded video yet.</div>
             )}
+
+            {uploadWarnings.length > 0 ? (
+              <div style={{ color: "var(--danger)", fontSize: 13, lineHeight: 1.5 }}>
+                {uploadWarnings.map((w, i) => (
+                  <div key={i}>{w}</div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <button
+                className="btn"
+                onClick={() =>
+                  run("extract_frame", async () => {
+                    const seg = await extractFrame(projectId, currentIndex);
+                    setUploadWarnings((seg.warnings || []).filter((w): w is string => typeof w === "string" && w.length > 0));
+                    await refresh();
+                  })
+                }
+                disabled={!!busy || !currentSegment?.video_url}
+              >
+                {busy === "extract_frame" ? "Extracting…" : "Retry Extract Frame"}
+              </button>
+
+              <button
+                className="btn"
+                onClick={() =>
+                  run("save_frame", async () => {
+                    if (!frameSrc || !currentSegment?.frame_url) throw new Error("No frame to save");
+                    const raw = `${backendUrl()}${currentSegment.frame_url}`;
+                    const name = `frame_${currentIndex.toString().padStart(3, "0")}.jpg`;
+                    await downloadFrame(raw, name);
+                  })
+                }
+                disabled={!!busy || !currentSegment?.frame_url}
+              >
+                {busy === "save_frame" ? "Saving…" : "Save Frame"}
+              </button>
+            </div>
 
             <button
               className="btn primary"
@@ -378,4 +439,3 @@ export default function ProjectPage() {
     </div>
   );
 }
-

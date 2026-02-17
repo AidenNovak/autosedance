@@ -45,6 +45,7 @@ class SegmentOut(BaseModel):
     video_prompt: str = ""
     status: str
     video_description: Optional[str] = None
+    warnings: List[str] = Field(default_factory=list)
 
     # Debug/ops fields (UI should prefer the /video and /frame endpoints)
     video_path: Optional[str] = None
@@ -74,4 +75,3 @@ class ProjectOut(BaseModel):
     num_segments: int
     next_action: str
     segments: List[SegmentOut]
-

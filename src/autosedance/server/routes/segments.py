@@ -214,9 +214,19 @@ def upload_segment_video(
         except Exception:
             pass
 
+    warnings = []
+    # Clear stale frame first; if extraction fails we should not keep an old frame.
+    seg.last_frame_path = None
+    # Best-effort extract last frame on upload, so the frontend can display it immediately.
+    try:
+        frame_out = frame_path(project_id, index, ext=".jpg")
+        last_frame = extract_last_frame(str(dst), frame_out)
+        seg.last_frame_path = str(last_frame)
+    except Exception as e:
+        warnings.append(f"Failed to extract last frame: {str(e)}")
+
     seg.video_path = str(dst)
     seg.video_description = None
-    seg.last_frame_path = None
     seg.status = "waiting_video"
     seg.updated_at = now_utc()
     session.add(seg)
@@ -229,7 +239,7 @@ def upload_segment_video(
     session.commit()
     session.refresh(seg)
 
-    return segment_to_out(project_id, seg)
+    return segment_to_out(project_id, seg, warnings=warnings)
 
 
 @router.get("/{project_id}/segments/{index}/video")
@@ -241,6 +251,38 @@ def get_segment_video(project_id: str, index: int, session: Session = Depends(ge
     if not path.exists():
         raise HTTPException(status_code=404, detail="Video file missing on disk")
     return FileResponse(str(path))
+
+
+@router.post("/{project_id}/segments/{index}/extract_frame", response_model=SegmentOut)
+def extract_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    if not seg.video_path:
+        raise HTTPException(status_code=400, detail="Segment has no uploaded video")
+
+    video_path = Path(seg.video_path)
+    if not video_path.exists():
+        raise HTTPException(status_code=400, detail="Uploaded video path missing on disk")
+
+    warnings = []
+    try:
+        frame_out = frame_path(project_id, index, ext=".jpg")
+        last_frame = extract_last_frame(str(video_path), frame_out)
+        seg.last_frame_path = str(last_frame)
+    except Exception as e:
+        warnings.append(f"Failed to extract last frame: {str(e)}")
+
+    seg.updated_at = now_utc()
+    session.add(seg)
+    session.commit()
+    session.refresh(seg)
+
+    return segment_to_out(project_id, seg, warnings=warnings)
 
 
 @router.post("/{project_id}/segments/{index}/analyze", response_model=ProjectOut)

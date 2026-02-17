@@ -7,7 +7,7 @@ from ..schemas import ProjectOut, SegmentOut
 from ..utils import derive_next_action, total_segments
 
 
-def segment_to_out(project_id: str, segment: Segment) -> SegmentOut:
+def segment_to_out(project_id: str, segment: Segment, warnings: Optional[List[str]] = None) -> SegmentOut:
     video_url: Optional[str] = None
     frame_url: Optional[str] = None
     if segment.video_path:
@@ -21,6 +21,7 @@ def segment_to_out(project_id: str, segment: Segment) -> SegmentOut:
         video_prompt=segment.video_prompt or "",
         status=segment.status,
         video_description=segment.video_description,
+        warnings=warnings or [],
         video_path=segment.video_path,
         last_frame_path=segment.last_frame_path,
         video_url=video_url,
@@ -47,4 +48,3 @@ def project_to_out(project: Project, segments: List[Segment]) -> ProjectOut:
         next_action=derive_next_action(project, segs_sorted),
         segments=[segment_to_out(project.id, s) for s in segs_sorted],
     )
-

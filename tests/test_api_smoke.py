@@ -97,6 +97,9 @@ def test_api_happy_path_manual_upload(client, monkeypatch, tmp_path):
         files={"file": ("segment_000.mp4", b"fakevideo", "video/mp4")},
     )
     assert r.status_code == 200, r.text
+    seg = r.json()
+    assert seg.get("warnings") == []
+    assert seg.get("frame_url")
 
     # Analyze 0
     r = client.post(f"/api/projects/{pid}/segments/0/analyze")
@@ -114,6 +117,9 @@ def test_api_happy_path_manual_upload(client, monkeypatch, tmp_path):
         files={"file": ("segment_001.mp4", b"fakevideo2", "video/mp4")},
     )
     assert r.status_code == 200, r.text
+    seg = r.json()
+    assert seg.get("warnings") == []
+    assert seg.get("frame_url")
     r = client.post(f"/api/projects/{pid}/segments/1/analyze")
     assert r.status_code == 200, r.text
 
@@ -122,4 +128,3 @@ def test_api_happy_path_manual_upload(client, monkeypatch, tmp_path):
     assert r.status_code == 200, r.text
     project = r.json()
     assert project["final_video_path"]
-
