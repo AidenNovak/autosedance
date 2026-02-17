@@ -53,6 +53,9 @@ DASHSCOPE_API_KEY=your_dashscope_api_key
 # 默认视频模型
 VIDEO_MODEL=wan  # 可选: wan 或 seedance
 
+# (可选) 视频拼接策略
+# VIDEO_CONCAT_MODE=auto  # auto|copy|ts|reencode
+
 # (可选) Server 数据库存储
 # DATABASE_URL=sqlite:///output/autosedance.sqlite3
 # OUTPUT_DIR=output
