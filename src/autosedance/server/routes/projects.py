@@ -11,16 +11,16 @@ from sqlmodel import Session, select
 from ...utils.video import concatenate_videos
 from ..db import get_session
 from ..models import Project, Segment
-from ..routes.common import project_to_out
-from ..schemas import CreateProjectIn, ProjectOut
+from ..routes.common import project_to_detail_out, project_to_summary_out
+from ..schemas import CreateProjectIn, ProjectDetailOut, ProjectSummaryOut
 from ..storage import ensure_project_dirs, final_video_path
 from ..utils import now_utc, total_segments
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
-@router.post("", response_model=ProjectOut)
-def create_project(payload: CreateProjectIn, session: Session = Depends(get_session)) -> ProjectOut:
+@router.post("", response_model=ProjectDetailOut)
+def create_project(payload: CreateProjectIn, session: Session = Depends(get_session)) -> ProjectDetailOut:
     if payload.total_duration_seconds <= 0:
         raise HTTPException(status_code=400, detail="total_duration_seconds must be > 0")
     if payload.segment_duration <= 0:
@@ -46,30 +46,45 @@ def create_project(payload: CreateProjectIn, session: Session = Depends(get_sess
     ensure_project_dirs(project.id)
 
     segments: List[Segment] = []
-    return project_to_out(project, segments)
+    return project_to_detail_out(project, segments)
 
 
-@router.get("", response_model=List[ProjectOut])
-def list_projects(session: Session = Depends(get_session)) -> List[ProjectOut]:
+@router.get("", response_model=List[ProjectSummaryOut])
+def list_projects(session: Session = Depends(get_session)) -> List[ProjectSummaryOut]:
     projects = session.exec(select(Project).order_by(Project.created_at.desc())).all()
-    out: List[ProjectOut] = []
-    for p in projects:
-        segs = session.exec(select(Segment).where(Segment.project_id == p.id)).all()
-        out.append(project_to_out(p, segs))
-    return out
+    if not projects:
+        return []
+
+    ids = [p.id for p in projects]
+    segs = session.exec(select(Segment).where(Segment.project_id.in_(ids))).all()
+    by_project: dict[str, List[Segment]] = {pid: [] for pid in ids}
+    for s in segs:
+        by_project.setdefault(s.project_id, []).append(s)
+
+    return [project_to_summary_out(p, by_project.get(p.id, [])) for p in projects]
 
 
-@router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: str, session: Session = Depends(get_session)) -> ProjectOut:
+@router.get("/{project_id}", response_model=ProjectDetailOut)
+def get_project(
+    project_id: str,
+    include_full_script: bool = True,
+    include_canon: bool = True,
+    session: Session = Depends(get_session),
+) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(
+        project,
+        segs,
+        include_full_script=include_full_script,
+        include_canon=include_canon,
+    )
 
 
-@router.post("/{project_id}/assemble", response_model=ProjectOut)
-def assemble_project(project_id: str, session: Session = Depends(get_session)) -> ProjectOut:
+@router.post("/{project_id}/assemble", response_model=ProjectDetailOut)
+def assemble_project(project_id: str, session: Session = Depends(get_session)) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -99,7 +114,7 @@ def assemble_project(project_id: str, session: Session = Depends(get_session)) -
 
     # Refresh segments for response
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(project, segs)
 
 
 @router.get("/{project_id}/final")

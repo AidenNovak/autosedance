@@ -23,41 +23,67 @@ def extract_last_frame(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 先获取视频时长
-    probe = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            str(video_path),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    # Fast path: seek from EOF (usually faster than probing duration).
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-sseof",
+                "-0.5",
+                "-i",
+                str(video_path),
+                "-vframes",
+                "1",
+                "-y",
+                str(output_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return output_path
+    except Exception:
+        # Fall back to probing duration + timestamp seek for compatibility.
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        duration = float(probe.stdout.strip())
 
-    duration = float(probe.stdout.strip())
-
-    # 提取最后0.5秒的帧
-    timestamp = max(0, duration - 0.5)
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-ss",
-            str(timestamp),
-            "-i",
-            str(video_path),
-            "-vframes",
-            "1",
-            "-y",
-            str(output_path),
-        ],
-        check=True,
-        capture_output=True,
-    )
+        timestamp = max(0, duration - 0.5)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-ss",
+                str(timestamp),
+                "-i",
+                str(video_path),
+                "-vframes",
+                "1",
+                "-y",
+                str(output_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
 
     return output_path
 
@@ -86,29 +112,56 @@ async def concatenate_videos(
             abs_path = Path(path).resolve()
             f.write(f"file '{abs_path}'\n")
 
-    # 使用 re-encode 确保同步
     def run_ffmpeg():
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                str(list_file),
-                "-c:v",
-                "libx264",
-                "-c:a",
-                "aac",
-                "-strict",
-                "experimental",
-                "-y",
-                str(output_path),
-            ],
-            check=True,
-            capture_output=True,
-        )
+        # Fast path: stream copy (requires compatible codecs across segments).
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-nostdin",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(list_file),
+                    "-c",
+                    "copy",
+                    "-y",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            return
+        except Exception:
+            # Fallback: re-encode for robustness.
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-nostdin",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(list_file),
+                    "-c:v",
+                    "libx264",
+                    "-c:a",
+                    "aac",
+                    "-y",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+            )
 
     # 在线程池中运行ffmpeg
     await asyncio.get_event_loop().run_in_executor(None, run_ffmpeg)

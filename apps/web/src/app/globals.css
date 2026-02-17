@@ -248,3 +248,151 @@ pre {
   background: rgba(0, 0, 0, 0.2);
 }
 
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 980px) {
+  .split {
+    grid-template-columns: 340px 1fr;
+    gap: 16px;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 86px;
+    align-self: start;
+  }
+}
+
+.segscroll {
+  max-height: 54vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+@media (min-width: 980px) {
+  .segscroll {
+    max-height: calc(100vh - 260px);
+  }
+}
+
+.seglist {
+  display: grid;
+  gap: 10px;
+}
+
+.segitem {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 120ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.segitem:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.segitem:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.segitem.active {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.16), rgba(255, 255, 255, 0.03));
+  border-color: rgba(251, 191, 36, 0.28);
+}
+
+.segitem:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.segtitle {
+  font-family: var(--font-mono);
+  font-weight: 650;
+  font-size: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.segmeta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill.tiny {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+  flex: 0 0 auto;
+}
+
+.dot.ok {
+  background: rgba(45, 212, 191, 0.95);
+  border-color: rgba(45, 212, 191, 0.65);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.18);
+}
+
+.dot.bad {
+  background: rgba(255, 77, 79, 0.95);
+  border-color: rgba(255, 77, 79, 0.65);
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.18);
+}
+
+.dot.warn {
+  background: rgba(251, 191, 36, 0.95);
+  border-color: rgba(251, 191, 36, 0.65);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+
+.dot.mid {
+  background: rgba(59, 130, 246, 0.95);
+  border-color: rgba(59, 130, 246, 0.65);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.dot.idle {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+
+.progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.9), rgba(45, 212, 191, 0.85));
+}

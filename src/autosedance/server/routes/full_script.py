@@ -8,8 +8,8 @@ from sqlmodel import Session, select
 from ...nodes.scriptwriter import scriptwriter_node
 from ..db import get_session
 from ..models import Project, Segment
-from ..routes.common import project_to_out
-from ..schemas import GenerateWithFeedbackIn, ProjectOut, UpdateFullScriptIn
+from ..routes.common import project_to_detail_out
+from ..schemas import GenerateWithFeedbackIn, ProjectDetailOut, UpdateFullScriptIn
 from ..storage import atomic_write_text, full_script_path
 from ..utils import now_utc
 
@@ -29,12 +29,12 @@ def _invalidate_all_segments(session: Session, project_id: str) -> None:
         session.add(s)
 
 
-@router.post("/{project_id}/full_script/generate", response_model=ProjectOut)
+@router.post("/{project_id}/full_script/generate", response_model=ProjectDetailOut)
 def generate_full_script(
     project_id: str,
     payload: GenerateWithFeedbackIn,
     session: Session = Depends(get_session),
-) -> ProjectOut:
+) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -76,15 +76,15 @@ def generate_full_script(
     atomic_write_text(full_script_path(project_id), script)
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(project, segs)
 
 
-@router.put("/{project_id}/full_script", response_model=ProjectOut)
+@router.put("/{project_id}/full_script", response_model=ProjectDetailOut)
 def update_full_script(
     project_id: str,
     payload: UpdateFullScriptIn,
     session: Session = Depends(get_session),
-) -> ProjectOut:
+) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -106,5 +106,4 @@ def update_full_script(
     atomic_write_text(full_script_path(project_id), payload.full_script)
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
-
+    return project_to_detail_out(project, segs)

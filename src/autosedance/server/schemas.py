@@ -16,6 +16,9 @@ SegmentStatus = Literal[
     "failed",
 ]
 
+JobType = Literal["full_script", "segment_generate", "extract_frame", "analyze", "assemble"]
+JobStatus = Literal["queued", "running", "succeeded", "failed", "canceled"]
+
 
 class CreateProjectIn(BaseModel):
     user_prompt: str
@@ -39,7 +42,18 @@ class UpdateSegmentIn(BaseModel):
     invalidate_downstream: bool = True
 
 
-class SegmentOut(BaseModel):
+class SegmentSummaryOut(BaseModel):
+    index: int
+    status: str
+    has_video: bool
+    has_frame: bool
+    has_description: bool
+    updated_at: datetime
+    video_url: Optional[str] = None
+    frame_url: Optional[str] = None
+
+
+class SegmentDetailOut(BaseModel):
     index: int
     segment_script: str = ""
     video_prompt: str = ""
@@ -54,9 +68,31 @@ class SegmentOut(BaseModel):
     # Convenience URLs for the frontend
     video_url: Optional[str] = None
     frame_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
 
-class ProjectOut(BaseModel):
+class ProjectSummaryOut(BaseModel):
+    id: str
+    user_prompt: str
+    pacing: str
+    total_duration_seconds: int
+    segment_duration: int
+    current_segment_index: int = 0
+
+    created_at: datetime
+    updated_at: datetime
+
+    num_segments: int
+    next_action: str
+
+    segments_completed: int = 0
+    segments_with_video: int = 0
+    segments_with_frame: int = 0
+    segments_with_description: int = 0
+
+
+class ProjectDetailOut(BaseModel):
     id: str
     user_prompt: str
     pacing: str
@@ -74,4 +110,29 @@ class ProjectOut(BaseModel):
 
     num_segments: int
     next_action: str
-    segments: List[SegmentOut]
+    segments: List[SegmentSummaryOut]
+
+
+class CreateJobIn(BaseModel):
+    type: JobType
+    index: Optional[int] = None
+    feedback: Optional[str] = None
+
+
+class JobOut(BaseModel):
+    id: str
+    project_id: str
+    type: JobType
+    status: JobStatus
+    progress: int = 0
+    message: str = ""
+    error: Optional[str] = None
+    payload: dict = Field(default_factory=dict)
+    result: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+# Backwards-compatible aliases (legacy endpoints/tests may still import these).
+SegmentOut = SegmentDetailOut
+ProjectOut = ProjectDetailOut

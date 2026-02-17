@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import type { Project } from "@/lib/api";
+import type { ProjectSummary } from "@/lib/api";
 import { backendUrl, listProjects } from "@/lib/api";
 
 export default function HomePage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export default function HomePage() {
                       <div className="kv">
                         <div className="k">Segments</div>
                         <div className="v">
-                          {p.segments.length}/{p.num_segments}
+                          {p.segments_completed}/{p.num_segments}
                         </div>
                       </div>
                       <div className="kv">
@@ -81,7 +81,8 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
-                      {p.full_script ? "in0 ready" : "in0 missing"} · current segment: {p.current_segment_index}
+                      videos: {p.segments_with_video} · frames: {p.segments_with_frame} · desc:{" "}
+                      {p.segments_with_description} · current segment: {p.current_segment_index}
                     </div>
                   </div>
                 </Link>
@@ -106,11 +107,10 @@ export default function HomePage() {
             Tips:
             <div>1. Start with “New Project”.</div>
             <div>2. Keep duration a multiple of 15 for clean segment boundaries.</div>
-            <div>3. After uploading a segment video, click Analyze to move to the next segment.</div>
+            <div>3. Upload extracts the last frame immediately; Analyze generates inNB and advances continuity.</div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

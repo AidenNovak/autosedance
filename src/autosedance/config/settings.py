@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     database_url: str = ""  # e.g. sqlite:///output/autosedance.sqlite3
     projects_dir: str = ""  # overrides {output_dir}/projects when set
     cors_origins: str = ""  # comma-separated, empty means allow all
+    disable_worker: bool = False
 
     class Config:
         env_file = ".env"

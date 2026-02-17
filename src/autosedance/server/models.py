@@ -53,3 +53,20 @@ class Segment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 
+
+class Job(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    project_id: str = Field(index=True, foreign_key="project.id")
+
+    type: str = Field(index=True)  # full_script|segment_generate|extract_frame|analyze|assemble
+    status: str = Field(index=True, default="queued")  # queued|running|succeeded|failed|canceled
+    progress: int = 0
+
+    message: str = ""
+    error: Optional[str] = None
+
+    payload_json: str = "{}"
+    result_json: str = "{}"
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)

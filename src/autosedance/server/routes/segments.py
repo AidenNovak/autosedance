@@ -15,8 +15,8 @@ from ...prompts.analyzer import ANALYZER_SYSTEM, ANALYZER_USER
 from ...utils.video import extract_last_frame
 from ..db import get_session
 from ..models import Project, Segment
-from ..routes.common import project_to_out, segment_to_out
-from ..schemas import GenerateWithFeedbackIn, ProjectOut, SegmentOut, UpdateSegmentIn
+from ..routes.common import project_to_detail_out, segment_to_detail_out
+from ..schemas import GenerateWithFeedbackIn, ProjectDetailOut, SegmentDetailOut, UpdateSegmentIn
 from ..storage import (
     atomic_write_text,
     frame_path,
@@ -65,13 +65,13 @@ def _latest_frame_before(session: Session, project_id: str, index: int) -> Optio
     return seg.last_frame_path if seg else None
 
 
-@router.post("/{project_id}/segments/{index}/generate", response_model=ProjectOut)
+@router.post("/{project_id}/segments/{index}/generate", response_model=ProjectDetailOut)
 def generate_segment(
     project_id: str,
     index: int,
     payload: GenerateWithFeedbackIn,
     session: Session = Depends(get_session),
-) -> ProjectOut:
+) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -136,16 +136,16 @@ def generate_segment(
     atomic_write_text(segment_txt_path(project_id, index), export_segment_text(project, seg))
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(project, segs)
 
 
-@router.put("/{project_id}/segments/{index}", response_model=ProjectOut)
+@router.put("/{project_id}/segments/{index}", response_model=ProjectDetailOut)
 def update_segment(
     project_id: str,
     index: int,
     payload: UpdateSegmentIn,
     session: Session = Depends(get_session),
-) -> ProjectOut:
+) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -184,16 +184,43 @@ def update_segment(
     atomic_write_text(segment_txt_path(project_id, index), export_segment_text(project, seg))
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(project, segs)
 
 
-@router.post("/{project_id}/segments/{index}/video", response_model=SegmentOut)
+@router.get("/{project_id}/segments/{index}", response_model=SegmentDetailOut)
+def get_segment_detail(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentDetailOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        # Return a synthetic default segment detail for better UX (segment may not exist yet).
+        return SegmentDetailOut(
+            index=index,
+            segment_script="",
+            video_prompt="",
+            status="pending",
+            video_description=None,
+            warnings=[],
+            video_path=None,
+            last_frame_path=None,
+            video_url=None,
+            frame_url=None,
+            created_at=project.created_at,
+            updated_at=project.updated_at,
+        )
+
+    return segment_to_detail_out(project_id, seg)
+
+
+@router.post("/{project_id}/segments/{index}/video", response_model=SegmentDetailOut)
 def upload_segment_video(
     project_id: str,
     index: int,
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
-) -> SegmentOut:
+) -> SegmentDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -248,7 +275,7 @@ def upload_segment_video(
     session.commit()
     session.refresh(seg)
 
-    return segment_to_out(project_id, seg, warnings=warnings)
+    return segment_to_detail_out(project_id, seg, warnings=warnings)
 
 
 @router.get("/{project_id}/segments/{index}/video")
@@ -262,8 +289,8 @@ def get_segment_video(project_id: str, index: int, session: Session = Depends(ge
     return FileResponse(str(path))
 
 
-@router.post("/{project_id}/segments/{index}/extract_frame", response_model=SegmentOut)
-def extract_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentOut:
+@router.post("/{project_id}/segments/{index}/extract_frame", response_model=SegmentDetailOut)
+def extract_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -291,11 +318,11 @@ def extract_segment_frame(project_id: str, index: int, session: Session = Depend
     session.commit()
     session.refresh(seg)
 
-    return segment_to_out(project_id, seg, warnings=warnings)
+    return segment_to_detail_out(project_id, seg, warnings=warnings)
 
 
-@router.post("/{project_id}/segments/{index}/analyze", response_model=ProjectOut)
-def analyze_segment(project_id: str, index: int, session: Session = Depends(get_session)) -> ProjectOut:
+@router.post("/{project_id}/segments/{index}/analyze", response_model=ProjectDetailOut)
+def analyze_segment(project_id: str, index: int, session: Session = Depends(get_session)) -> ProjectDetailOut:
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -365,7 +392,7 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
     session.refresh(project)
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
-    return project_to_out(project, segs)
+    return project_to_detail_out(project, segs)
 
 
 @router.get("/{project_id}/segments/{index}/frame")
