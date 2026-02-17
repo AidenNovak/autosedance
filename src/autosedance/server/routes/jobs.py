@@ -58,7 +58,8 @@ def create_job(
         message="queued",
         error=None,
         payload_json=json.dumps(data, ensure_ascii=False),
-        result_json="{}",
+        # Provide a structured UI message so the frontend can translate it immediately.
+        result_json=json.dumps({"ui_message": {"key": "jobmsg.queued"}}, ensure_ascii=False),
         created_at=now_utc(),
         updated_at=now_utc(),
     )
@@ -107,4 +108,3 @@ def get_job(
         raise HTTPException(status_code=404, detail="Job not found")
 
     return _job_to_out(job)
-

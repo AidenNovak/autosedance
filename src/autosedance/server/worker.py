@@ -58,6 +58,21 @@ def _job_payload(job: Job) -> dict:
         return {}
 
 
+def _job_result(job: Job) -> dict:
+    try:
+        data = json.loads(job.result_json or "{}")
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _ui_message(key: str, params: Optional[dict] = None) -> dict:
+    msg: dict = {"key": key}
+    if params:
+        msg["params"] = params
+    return {"ui_message": msg}
+
+
 def _set_job(
     session: Session,
     job: Job,
@@ -77,7 +92,11 @@ def _set_job(
     if error is not None:
         job.error = error
     if result is not None:
-        job.result_json = json.dumps(result, ensure_ascii=False)
+        # Merge structured result fields (for example, ui_message) so incremental
+        # updates don't clobber earlier data.
+        cur = _job_result(job)
+        cur.update(result)
+        job.result_json = json.dumps(cur, ensure_ascii=False)
     job.updated_at = now_utc()
     session.add(job)
     session.commit()
@@ -135,7 +154,13 @@ def _run_full_script_job(session: Session, job: Job) -> dict:
     if not project:
         raise RuntimeError("Project not found")
 
-    _set_job(session, job, progress=5, message="Invalidating segments")
+    _set_job(
+        session,
+        job,
+        progress=5,
+        message="Invalidating segments",
+        result=_ui_message("jobmsg.full_script.invalidating"),
+    )
     _invalidate_all_segments(session, job.project_id)
 
     project.canon_summaries = ""
@@ -158,7 +183,13 @@ def _run_full_script_job(session: Session, job: Job) -> dict:
         "segment_duration": project.segment_duration,
     }
 
-    _set_job(session, job, progress=20, message="Calling LLM (full script)")
+    _set_job(
+        session,
+        job,
+        progress=20,
+        message="Calling LLM (full script)",
+        result=_ui_message("jobmsg.full_script.calling_llm"),
+    )
     result = asyncio.run(scriptwriter_node(state))  # type: ignore[arg-type]
     script = (result.get("full_script") or "").strip()
     if not script:
@@ -170,7 +201,13 @@ def _run_full_script_job(session: Session, job: Job) -> dict:
     session.commit()
     session.refresh(project)
 
-    _set_job(session, job, progress=90, message="Writing full_script.txt")
+    _set_job(
+        session,
+        job,
+        progress=90,
+        message="Writing full_script.txt",
+        result=_ui_message("jobmsg.full_script.writing"),
+    )
     atomic_write_text(full_script_path_for_project(project.id), script)
     return {"full_script_len": len(script)}
 
@@ -181,6 +218,7 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
     if idx is None:
         raise RuntimeError("Missing index for segment_generate")
     idx = int(idx)
+    seg_n = f"{idx + 1:03d}"
 
     project = session.get(Project, job.project_id)
     if not project:
@@ -192,7 +230,13 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
     if idx < 0 or idx >= expected:
         raise RuntimeError(f"index out of range (0..{expected - 1})")
 
-    _set_job(session, job, progress=5, message="Invalidating downstream segments")
+    _set_job(
+        session,
+        job,
+        progress=5,
+        message="Invalidating downstream segments",
+        result=_ui_message("jobmsg.segment.invalidating", {"n": seg_n}),
+    )
     _invalidate_downstream_segments(session, project.id, idx)
 
     project.canon_summaries = canon_before_index(project.canon_summaries or "", idx)
@@ -217,7 +261,13 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
         "total_duration_seconds": project.total_duration_seconds,
     }
 
-    _set_job(session, job, progress=20, message=f"Calling LLM (segment {idx + 1})")
+    _set_job(
+        session,
+        job,
+        progress=20,
+        message=f"Calling LLM (segment {idx + 1})",
+        result=_ui_message("jobmsg.segment.calling_llm", {"n": seg_n}),
+    )
     result = asyncio.run(segmenter_node(state))  # type: ignore[arg-type]
     seg_records = result.get("segments") or []
     if not seg_records:
@@ -241,7 +291,13 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
     session.commit()
     session.refresh(seg)
 
-    _set_job(session, job, progress=90, message="Writing segment txt")
+    _set_job(
+        session,
+        job,
+        progress=90,
+        message="Writing segment txt",
+        result=_ui_message("jobmsg.segment.writing", {"n": seg_n}),
+    )
     atomic_write_text(segment_txt_path(project.id, idx), export_segment_text(project, seg))
     return {"index": idx}
 
@@ -252,6 +308,7 @@ def _run_extract_frame_job(session: Session, job: Job) -> dict:
     if idx is None:
         raise RuntimeError("Missing index for extract_frame")
     idx = int(idx)
+    seg_n = f"{idx + 1:03d}"
 
     seg = session.exec(
         select(Segment).where(Segment.project_id == job.project_id, Segment.index == idx)
@@ -262,7 +319,13 @@ def _run_extract_frame_job(session: Session, job: Job) -> dict:
     if not video_path.exists():
         raise RuntimeError("Uploaded video missing on disk")
 
-    _set_job(session, job, progress=30, message="Extracting last frame")
+    _set_job(
+        session,
+        job,
+        progress=30,
+        message="Extracting last frame",
+        result=_ui_message("jobmsg.extract_frame.extracting", {"n": seg_n}),
+    )
     out = frame_path_for_segment(job.project_id, idx, ext=".jpg")
     out.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -283,6 +346,7 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     if idx is None:
         raise RuntimeError("Missing index for analyze")
     idx = int(idx)
+    seg_n = f"{idx + 1:03d}"
 
     project = session.get(Project, job.project_id)
     if not project:
@@ -302,7 +366,13 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     session.commit()
     session.refresh(seg)
 
-    _set_job(session, job, progress=15, message="Extracting last frame")
+    _set_job(
+        session,
+        job,
+        progress=15,
+        message="Extracting last frame",
+        result=_ui_message("jobmsg.analyze.extracting_frame", {"n": seg_n}),
+    )
     frame_out = frame_path_for_segment(project.id, idx, ext=".jpg")
     try:
         frame_out.unlink()
@@ -315,7 +385,13 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     session.refresh(seg)
 
     start, end = time_range(project, idx)
-    _set_job(session, job, progress=55, message="Calling multimodal LLM")
+    _set_job(
+        session,
+        job,
+        progress=55,
+        message="Calling multimodal LLM",
+        result=_ui_message("jobmsg.analyze.calling_llm", {"n": seg_n}),
+    )
     client = DoubaoClient()
     prompts = get_analyzer_prompts(payload.get("locale"))
     description = asyncio.run(
@@ -361,7 +437,13 @@ def _run_assemble_job(session: Session, job: Job) -> dict:
     video_paths = [by_index[i].video_path for i in range(expected)]  # type: ignore[list-item]
     out = final_video_path_for_project(project.id)
 
-    _set_job(session, job, progress=20, message="Running ffmpeg concat")
+    _set_job(
+        session,
+        job,
+        progress=20,
+        message="Running ffmpeg concat",
+        result=_ui_message("jobmsg.assemble.running_ffmpeg"),
+    )
     final_path = asyncio.run(concatenate_videos(video_paths, out))
 
     project.final_video_path = str(Path(final_path))
@@ -410,7 +492,15 @@ def _loop() -> None:
                     time.sleep(0.2)
                     continue
 
-                _set_job(session, job, status="running", progress=1, message="running", error=None)
+                _set_job(
+                    session,
+                    job,
+                    status="running",
+                    progress=1,
+                    message="running",
+                    error=None,
+                    result=_ui_message("jobmsg.running"),
+                )
 
                 try:
                     result = _run_job(session, job)
@@ -422,10 +512,18 @@ def _loop() -> None:
                         progress=int(job.progress or 0),
                         message="failed",
                         error=str(e),
+                        result=_ui_message("jobmsg.failed"),
                     )
                     continue
 
-                _set_job(session, job, status="succeeded", progress=100, message="succeeded", result=result)
+                _set_job(
+                    session,
+                    job,
+                    status="succeeded",
+                    progress=100,
+                    message="succeeded",
+                    result={"data": result, **_ui_message("jobmsg.succeeded")},
+                )
 
         except Exception:
             # Avoid worker death; sleep briefly and retry.

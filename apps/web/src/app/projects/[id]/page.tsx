@@ -422,14 +422,21 @@ export default function ProjectPage() {
               <span className="pill">
                 {trJobType(activeJob.type)} · {trJobStatus(activeJob.status)}
               </span>
-            </div>
-            <div className="bd" style={{ display: "grid", gap: 10 }}>
-              <div className="muted" style={{ lineHeight: 1.5 }}>
-                {activeJob.message || "…"}
-              </div>
-              <div className="progress">
-                <div style={{ width: `${clamp(activeJob.progress || 0, 0, 100)}%` }} />
-              </div>
+	            </div>
+	            <div className="bd" style={{ display: "grid", gap: 10 }}>
+	              <div className="muted" style={{ lineHeight: 1.5 }}>
+	                {(() => {
+	                  const ui = (activeJob.result as any)?.ui_message as any;
+	                  if (ui && typeof ui.key === "string") {
+	                    const out = t(ui.key, ui.params);
+	                    if (out !== ui.key) return out;
+	                  }
+	                  return activeJob.message || "…";
+	                })()}
+	              </div>
+	              <div className="progress">
+	                <div style={{ width: `${clamp(activeJob.progress || 0, 0, 100)}%` }} />
+	              </div>
               {activeJob.error ? <div style={{ color: "var(--danger)" }}>{activeJob.error}</div> : null}
             </div>
           </div>

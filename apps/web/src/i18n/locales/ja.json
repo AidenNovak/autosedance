@@ -138,6 +138,21 @@
   "job_status.failed": "失敗",
   "job_status.canceled": "キャンセル",
 
+  "jobmsg.queued": "待機中",
+  "jobmsg.running": "実行中",
+  "jobmsg.succeeded": "成功",
+  "jobmsg.failed": "失敗",
+  "jobmsg.full_script.invalidating": "セグメントをリセット中",
+  "jobmsg.full_script.calling_llm": "LLM 呼び出し（全体脚本）",
+  "jobmsg.full_script.writing": "全体脚本を書き込み中",
+  "jobmsg.segment.invalidating": "#{n} 以降のセグメントを無効化",
+  "jobmsg.segment.calling_llm": "LLM 呼び出し（セグメント #{n}）",
+  "jobmsg.segment.writing": "セグメント #{n} を書き込み中",
+  "jobmsg.extract_frame.extracting": "最終フレーム抽出（セグメント #{n}）",
+  "jobmsg.analyze.extracting_frame": "最終フレーム抽出（セグメント #{n}）",
+  "jobmsg.analyze.calling_llm": "マルチモーダル LLM 呼び出し（セグメント #{n}）",
+  "jobmsg.assemble.running_ffmpeg": "ffmpeg で結合中",
+
   "lang.zh-CN": "简体中文",
   "lang.en": "English",
   "lang.es": "Español",
@@ -152,4 +167,3 @@
   "i18n.value": "内容",
   "i18n.missing": "（不足）"
 }
-

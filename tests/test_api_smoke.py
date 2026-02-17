@@ -129,3 +129,25 @@ def test_api_happy_path_manual_upload(client, monkeypatch, tmp_path):
     assert r.status_code == 200, r.text
     project = r.json()
     assert project["final_video_path"]
+
+
+def test_jobs_include_ui_message_key(client):
+    # Create a project first.
+    r = client.post(
+        "/api/projects",
+        json={
+            "user_prompt": "test prompt",
+            "total_duration_seconds": 30,
+            "segment_duration": 15,
+            "pacing": "normal",
+        },
+    )
+    assert r.status_code == 200, r.text
+    pid = r.json()["id"]
+
+    # Create a queued job (worker is disabled in the fixture).
+    r = client.post(f"/api/projects/{pid}/jobs", json={"type": "full_script", "locale": "en"})
+    assert r.status_code == 200, r.text
+    job = r.json()
+    assert job["status"] == "queued"
+    assert job["result"]["ui_message"]["key"] == "jobmsg.queued"
