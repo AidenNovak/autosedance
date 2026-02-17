@@ -272,6 +272,16 @@ export default function ProjectPage() {
 
   if (!project) return null;
 
+  const canonDisplay = useMemo(() => {
+    const raw = (project.canon_summaries || "").trim();
+    if (!raw) return "";
+    return raw
+      .split("\n---\n")
+      .map((item) => item.replace(/^\[#IDX=\d+\]\s*/, "").trim())
+      .filter(Boolean)
+      .join("\n---\n");
+  }, [project.canon_summaries]);
+
   function trStatus(status: string): string {
     const key = `status.${status}`;
     const out = t(key);
@@ -499,7 +509,7 @@ export default function ProjectPage() {
             </div>
             <div className="bd">
               <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--muted)", fontSize: 12, lineHeight: 1.55 }}>
-                {project.canon_summaries || t("project.continuity.empty")}
+                {canonDisplay || t("project.continuity.empty")}
               </pre>
             </div>
           </div>
