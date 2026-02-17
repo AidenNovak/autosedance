@@ -404,3 +404,18 @@ def get_segment_frame(project_id: str, index: int, session: Session = Depends(ge
     if not path.exists():
         raise HTTPException(status_code=404, detail="Frame file missing on disk")
     return FileResponse(str(path))
+
+
+@router.get("/{project_id}/segments/{index}/frame/download")
+def download_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)):
+    """Force-download the frame (no CORS/fetch needed on the frontend)."""
+    seg = _get_segment(session, project_id, index)
+    if seg is None or not seg.last_frame_path:
+        raise HTTPException(status_code=404, detail="Frame not found")
+    path = Path(seg.last_frame_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Frame file missing on disk")
+
+    ext = path.suffix if path.suffix else ".jpg"
+    filename = f"frame_{index:03d}{ext}"
+    return FileResponse(str(path), filename=filename)

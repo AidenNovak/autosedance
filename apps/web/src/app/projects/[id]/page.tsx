@@ -47,23 +47,6 @@ function statusDotClass(status: string) {
   }
 }
 
-async function downloadFile(url: string, filename: string) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
-  const blob = await res.blob();
-  const objUrl = URL.createObjectURL(blob);
-  try {
-    const a = document.createElement("a");
-    a.href = objUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  } finally {
-    URL.revokeObjectURL(objUrl);
-  }
-}
-
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
@@ -632,17 +615,19 @@ export default function ProjectPage() {
 
                 <button
                   className="btn"
-                  onClick={() =>
-                    run("save_frame", async () => {
-                      if (!segment?.frame_url) throw new Error("No frame to save");
-                      const raw = `${backendUrl()}${segment.frame_url}`;
-                      const name = `frame_${pad3(selectedIndex)}.jpg`;
-                      await downloadFile(raw, name);
-                    })
-                  }
+                  onClick={() => {
+                    if (!segment?.frame_url) return;
+                    const url = `${backendUrl()}/api/projects/${projectId}/segments/${selectedIndex}/frame/download`;
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `frame_${pad3(selectedIndex)}.jpg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  }}
                   disabled={locked || !segment?.frame_url}
                 >
-                  {busy === "save_frame" ? "Saving…" : "Save Frame"}
+                  Save Frame
                 </button>
               </div>
 
@@ -720,4 +705,3 @@ export default function ProjectPage() {
     </div>
   );
 }
-
