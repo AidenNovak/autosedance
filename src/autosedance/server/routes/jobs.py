@@ -6,6 +6,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from ..auth import AuthUser, require_read_user, require_user
+from ..authz import require_project_owner
 from ..db import get_session
 from ..models import Job, Project
 from ..schemas import CreateJobIn, JobOut
@@ -43,8 +45,10 @@ def _job_to_out(job: Job) -> JobOut:
 def create_job(
     project_id: str,
     payload: CreateJobIn,
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> JobOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -73,8 +77,10 @@ def create_job(
 def list_jobs(
     project_id: str,
     limit: int = 20,
+    user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> List[JobOut]:
+    require_project_owner(session, project_id, user.email)
     if limit < 1:
         limit = 1
     if limit > 200:
@@ -97,8 +103,10 @@ def list_jobs(
 def get_job(
     project_id: str,
     job_id: str,
+    user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> JobOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

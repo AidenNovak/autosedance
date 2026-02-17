@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -10,10 +10,13 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from ...clients.doubao import DoubaoClient
+from ...config import get_settings
 from ...nodes.segmenter import segmenter_node
 from ...prompts.loader import get_analyzer_prompts
 from ...utils.canon import format_canon_summary
 from ...utils.video import extract_last_frame
+from ..auth import AuthUser, require_read_user, require_user
+from ..authz import require_project_owner
 from ..db import get_session
 from ..models import Project, Segment
 from ..routes.common import project_to_detail_out, segment_to_detail_out
@@ -34,6 +37,7 @@ from ..utils import (
 )
 
 router = APIRouter(prefix="/api/projects", tags=["segments"])
+logger = logging.getLogger(__name__)
 
 
 def _get_segment(session: Session, project_id: str, index: int) -> Optional[Segment]:
@@ -71,8 +75,10 @@ def generate_segment(
     project_id: str,
     index: int,
     payload: GenerateWithFeedbackIn,
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -101,8 +107,9 @@ def generate_segment(
 
     try:
         result = asyncio.run(segmenter_node(state))  # type: ignore[arg-type]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Segment generation failed: {str(e)}")
+    except Exception:
+        logger.exception("Segment generation failed (project_id=%s index=%s)", project_id, index)
+        raise HTTPException(status_code=500, detail="Segment generation failed")
 
     seg_records = result.get("segments") or []
     if not seg_records:
@@ -143,8 +150,10 @@ def update_segment(
     project_id: str,
     index: int,
     payload: UpdateSegmentIn,
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -187,7 +196,13 @@ def update_segment(
 
 
 @router.get("/{project_id}/segments/{index}", response_model=SegmentDetailOut)
-def get_segment_detail(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentDetailOut:
+def get_segment_detail(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+) -> SegmentDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -218,8 +233,10 @@ def upload_segment_video(
     project_id: str,
     index: int,
     file: UploadFile = File(...),
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SegmentDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -228,12 +245,29 @@ def upload_segment_video(
     if seg is None:
         raise HTTPException(status_code=400, detail="Segment not found; generate or create it first")
 
+    # Basic validation (server-side) before writing to disk.
+    settings = get_settings()
+    allowed_ext = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"}
+    if file.filename:
+        ext = Path(file.filename).suffix.lower()
+        if ext and ext not in allowed_ext:
+            raise HTTPException(status_code=400, detail="UNSUPPORTED_VIDEO_TYPE")
+
     dst = input_video_path(project_id, index, original_filename=file.filename)
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     try:
+        max_bytes = int(settings.max_upload_mb) * 1024 * 1024
+        written = 0
         with dst.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    raise HTTPException(status_code=413, detail="UPLOAD_TOO_LARGE")
+                f.write(chunk)
     finally:
         try:
             file.file.close()
@@ -253,12 +287,13 @@ def upload_segment_video(
             pass
         last_frame = extract_last_frame(str(dst), frame_out)
         seg.last_frame_path = str(last_frame)
-    except Exception as e:
+    except Exception:
         try:
             frame_out.unlink()
         except Exception:
             pass
-        warnings.append(f"Failed to extract last frame: {str(e)}")
+        logger.exception("Failed to extract last frame on upload (project_id=%s index=%s)", project_id, index)
+        warnings.append("Failed to extract last frame")
 
     seg.video_path = str(dst)
     seg.video_description = None
@@ -278,7 +313,13 @@ def upload_segment_video(
 
 
 @router.get("/{project_id}/segments/{index}/video")
-def get_segment_video(project_id: str, index: int, session: Session = Depends(get_session)):
+def get_segment_video(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+):
+    require_project_owner(session, project_id, user.email)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.video_path:
         raise HTTPException(status_code=404, detail="Video not found")
@@ -289,7 +330,13 @@ def get_segment_video(project_id: str, index: int, session: Session = Depends(ge
 
 
 @router.post("/{project_id}/segments/{index}/extract_frame", response_model=SegmentDetailOut)
-def extract_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)) -> SegmentDetailOut:
+def extract_segment_frame(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> SegmentDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -309,8 +356,9 @@ def extract_segment_frame(project_id: str, index: int, session: Session = Depend
         frame_out = frame_path(project_id, index, ext=".jpg")
         last_frame = extract_last_frame(str(video_path), frame_out)
         seg.last_frame_path = str(last_frame)
-    except Exception as e:
-        warnings.append(f"Failed to extract last frame: {str(e)}")
+    except Exception:
+        logger.exception("Failed to extract last frame (project_id=%s index=%s)", project_id, index)
+        warnings.append("Failed to extract last frame")
 
     seg.updated_at = now_utc()
     session.add(seg)
@@ -321,7 +369,13 @@ def extract_segment_frame(project_id: str, index: int, session: Session = Depend
 
 
 @router.post("/{project_id}/segments/{index}/analyze", response_model=ProjectDetailOut)
-def analyze_segment(project_id: str, index: int, session: Session = Depends(get_session)) -> ProjectDetailOut:
+def analyze_segment(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -344,12 +398,13 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
     frame_out = frame_path(project_id, index, ext=".jpg")
     try:
         last_frame = extract_last_frame(seg.video_path, frame_out)
-    except Exception as e:
+    except Exception:
         seg.status = "failed"
         seg.updated_at = now_utc()
         session.add(seg)
         session.commit()
-        raise HTTPException(status_code=500, detail=f"Failed to extract frame: {str(e)}")
+        logger.exception("Failed to extract frame (project_id=%s index=%s)", project_id, index)
+        raise HTTPException(status_code=500, detail="Failed to extract frame")
 
     start, end = time_range(project, index)
 
@@ -367,12 +422,13 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
                 image_path=str(last_frame),
             )
         )
-    except Exception as e:
+    except Exception:
         seg.status = "failed"
         seg.updated_at = now_utc()
         session.add(seg)
         session.commit()
-        raise HTTPException(status_code=500, detail=f"Video analysis failed: {str(e)}")
+        logger.exception("Video analysis failed (project_id=%s index=%s)", project_id, index)
+        raise HTTPException(status_code=500, detail="Video analysis failed")
 
     seg.video_description = description
     seg.last_frame_path = str(last_frame)
@@ -396,7 +452,13 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
 
 
 @router.get("/{project_id}/segments/{index}/frame")
-def get_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)):
+def get_segment_frame(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+):
+    require_project_owner(session, project_id, user.email)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.last_frame_path:
         raise HTTPException(status_code=404, detail="Frame not found")
@@ -407,8 +469,14 @@ def get_segment_frame(project_id: str, index: int, session: Session = Depends(ge
 
 
 @router.get("/{project_id}/segments/{index}/frame/download")
-def download_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)):
+def download_segment_frame(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+):
     """Force-download the frame (no CORS/fetch needed on the frontend)."""
+    require_project_owner(session, project_id, user.email)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.last_frame_path:
         raise HTTPException(status_code=404, detail="Frame not found")

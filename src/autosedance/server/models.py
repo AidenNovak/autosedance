@@ -70,3 +70,46 @@ class Job(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class EmailOtp(SQLModel, table=True):
+    """One-time code for email verification.
+
+    Store only a hash of the OTP code (HMAC with server secret), never the raw code.
+    """
+
+    __table_args__ = (UniqueConstraint("email", "code_hash"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True)
+    code_hash: str = Field(index=True)
+
+    attempts: int = 0
+    consumed_at: Optional[datetime] = None
+    expires_at: datetime = Field(index=True)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class AuthSession(SQLModel, table=True):
+    """Persistent auth session stored server-side, referenced by an opaque cookie token."""
+
+    __table_args__ = (UniqueConstraint("token_hash"),)
+
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    email: str = Field(index=True)
+    token_hash: str = Field(index=True)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    expires_at: datetime = Field(index=True)
+    revoked_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+
+
+class ProjectOwner(SQLModel, table=True):
+    """Maps a project to the owning email (for multi-user isolation)."""
+
+    project_id: str = Field(primary_key=True, foreign_key="project.id")
+    email: str = Field(index=True)
+    created_at: datetime = Field(default_factory=_utcnow)

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import type { ProjectSummary } from "@/lib/api";
 import { backendUrl, listProjects } from "@/lib/api";
+import { humanizeError } from "@/lib/errors";
 import { useI18n } from "@/components/I18nProvider";
 
 export default function HomePage() {
@@ -20,7 +21,7 @@ export default function HomePage() {
       const data = await listProjects();
       setProjects(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("home.projects.failed_load"));
+      setError(humanizeError(t, e, t("home.projects.failed_load")));
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ export default function HomePage() {
       <div className="card">
         <div className="hd">
           <h2>{t("home.backend.title")}</h2>
-          <span className="pill">{backendUrl()}</span>
+          <span className="pill">{backendUrl() || t("common.same_origin")}</span>
         </div>
         <div className="bd">
           <div className="muted" style={{ lineHeight: 1.6 }}>

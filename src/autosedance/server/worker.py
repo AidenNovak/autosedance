@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import threading
 import time
 from pathlib import Path
@@ -36,6 +37,11 @@ from .utils import (
 
 _thread: Optional[threading.Thread] = None
 _stop = threading.Event()
+logger = logging.getLogger(__name__)
+
+
+class PublicError(RuntimeError):
+    """A safe, user-facing error string that can be shown in the Web UI."""
 
 
 def start_worker() -> None:
@@ -73,6 +79,9 @@ def _ui_message(key: str, params: Optional[dict] = None) -> dict:
     return {"ui_message": msg}
 
 
+_UNSET = object()
+
+
 def _set_job(
     session: Session,
     job: Job,
@@ -80,7 +89,7 @@ def _set_job(
     status: Optional[str] = None,
     progress: Optional[int] = None,
     message: Optional[str] = None,
-    error: Optional[str] = None,
+    error: object = _UNSET,
     result: Optional[dict] = None,
 ) -> None:
     if status is not None:
@@ -89,8 +98,8 @@ def _set_job(
         job.progress = int(progress)
     if message is not None:
         job.message = message
-    if error is not None:
-        job.error = error
+    if error is not _UNSET:
+        job.error = error if isinstance(error, str) else None
     if result is not None:
         # Merge structured result fields (for example, ui_message) so incremental
         # updates don't clobber earlier data.
@@ -152,7 +161,7 @@ def _run_full_script_job(session: Session, job: Job) -> dict:
     payload = _job_payload(job)
     project = session.get(Project, job.project_id)
     if not project:
-        raise RuntimeError("Project not found")
+        raise PublicError("Project not found")
 
     _set_job(
         session,
@@ -216,19 +225,19 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
     payload = _job_payload(job)
     idx = payload.get("index")
     if idx is None:
-        raise RuntimeError("Missing index for segment_generate")
+        raise PublicError("Missing index for segment_generate")
     idx = int(idx)
     seg_n = f"{idx + 1:03d}"
 
     project = session.get(Project, job.project_id)
     if not project:
-        raise RuntimeError("Project not found")
+        raise PublicError("Project not found")
     if not (project.full_script or "").strip():
-        raise RuntimeError("full_script is empty; generate it first")
+        raise PublicError("full_script is empty; generate it first")
 
     expected = total_segments(project)
     if idx < 0 or idx >= expected:
-        raise RuntimeError(f"index out of range (0..{expected - 1})")
+        raise PublicError(f"index out of range (0..{expected - 1})")
 
     _set_job(
         session,
@@ -306,7 +315,7 @@ def _run_extract_frame_job(session: Session, job: Job) -> dict:
     payload = _job_payload(job)
     idx = payload.get("index")
     if idx is None:
-        raise RuntimeError("Missing index for extract_frame")
+        raise PublicError("Missing index for extract_frame")
     idx = int(idx)
     seg_n = f"{idx + 1:03d}"
 
@@ -314,10 +323,10 @@ def _run_extract_frame_job(session: Session, job: Job) -> dict:
         select(Segment).where(Segment.project_id == job.project_id, Segment.index == idx)
     ).first()
     if seg is None or not seg.video_path:
-        raise RuntimeError("Segment or video not found")
+        raise PublicError("Segment or video not found")
     video_path = Path(seg.video_path)
     if not video_path.exists():
-        raise RuntimeError("Uploaded video missing on disk")
+        raise PublicError("Uploaded video missing on disk")
 
     _set_job(
         session,
@@ -344,21 +353,21 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     payload = _job_payload(job)
     idx = payload.get("index")
     if idx is None:
-        raise RuntimeError("Missing index for analyze")
+        raise PublicError("Missing index for analyze")
     idx = int(idx)
     seg_n = f"{idx + 1:03d}"
 
     project = session.get(Project, job.project_id)
     if not project:
-        raise RuntimeError("Project not found")
+        raise PublicError("Project not found")
 
     seg = session.exec(
         select(Segment).where(Segment.project_id == project.id, Segment.index == idx)
     ).first()
     if seg is None or not seg.video_path:
-        raise RuntimeError("Segment or video not found")
+        raise PublicError("Segment or video not found")
     if not Path(seg.video_path).exists():
-        raise RuntimeError("Uploaded video missing on disk")
+        raise PublicError("Uploaded video missing on disk")
 
     seg.status = "analyzing"
     seg.updated_at = now_utc()
@@ -425,14 +434,14 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
 def _run_assemble_job(session: Session, job: Job) -> dict:
     project = session.get(Project, job.project_id)
     if not project:
-        raise RuntimeError("Project not found")
+        raise PublicError("Project not found")
 
     expected = total_segments(project)
     segs = session.exec(select(Segment).where(Segment.project_id == project.id)).all()
     by_index = {s.index: s for s in segs if s.video_path}
     missing = [i for i in range(expected) if i not in by_index]
     if missing:
-        raise RuntimeError(f"Missing videos for segments: {missing}")
+        raise PublicError(f"Missing videos for segments: {missing}")
 
     video_paths = [by_index[i].video_path for i in range(expected)]  # type: ignore[list-item]
     out = final_video_path_for_project(project.id)
@@ -505,13 +514,20 @@ def _loop() -> None:
                 try:
                     result = _run_job(session, job)
                 except Exception as e:
+                    logger.exception(
+                        "Job failed (id=%s type=%s project_id=%s)",
+                        job.id,
+                        job.type,
+                        job.project_id,
+                    )
+                    safe_err = str(e) if isinstance(e, PublicError) else None
                     _set_job(
                         session,
                         job,
                         status="failed",
                         progress=int(job.progress or 0),
                         message="failed",
-                        error=str(e),
+                        error=safe_err,
                         result=_ui_message("jobmsg.failed"),
                     )
                     continue
@@ -527,4 +543,5 @@ def _loop() -> None:
 
         except Exception:
             # Avoid worker death; sleep briefly and retry.
+            logger.exception("Worker loop error")
             time.sleep(0.5)

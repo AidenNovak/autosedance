@@ -203,6 +203,31 @@ pre {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.auth-pop {
+  position: relative;
+}
+
+.auth-pop > summary {
+  list-style: none;
+}
+
+.auth-pop > summary::-webkit-details-marker {
+  display: none;
+}
+
+.auth-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px;
+  background: linear-gradient(180deg, var(--card2), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  z-index: 60;
+}
+
 .kvs {
   display: grid;
   grid-template-columns: 1fr;

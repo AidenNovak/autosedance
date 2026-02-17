@@ -59,6 +59,18 @@ VIDEO_MODEL=wan  # 可选: wan 或 seedance
 # (可选) Server 数据库存储
 # DATABASE_URL=sqlite:///output/autosedance.sqlite3
 # OUTPUT_DIR=output
+
+# (推荐) 对外开放：邮箱验证码登录（QQ 邮箱 SMTP）
+AUTH_ENABLED=1
+AUTH_SECRET_KEY=change_me_to_a_long_random_string
+SMTP_USER=2453204059@qq.com
+SMTP_PASSWORD=your_qq_smtp_authorization_code
+```
+
+如果你在启用登录前已经有旧的 SQLite 数据库项目，可以用脚本把历史项目统一归属到某个邮箱：
+
+```bash
+python3 scripts/backfill_project_owners.py --email your@email.com
 ```
 
 ## 使用
@@ -81,7 +93,10 @@ npm install
 npm run dev
 ```
 
-打开 `http://localhost:3000`，按页面流程生成 in0/inN，上传每段视频，点击 Analyze 进入下一段，最后 Assemble。
+打开 `http://localhost:3612`。
+
+- 首次使用需要邮箱验证码登录（右上角 Login）。
+- 前端默认会把同源的 `/api/*` 通过 Next rewrites 代理到后端（默认 `http://localhost:8000`），因此对外部署时可以只暴露前端端口/域名，把后端端口留在内网或仅监听 `127.0.0.1`。
 
 ### CLI（当前会在等待视频时结束）
 

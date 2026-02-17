@@ -134,6 +134,24 @@ class JobOut(BaseModel):
     updated_at: datetime
 
 
+class AuthRequestCodeIn(BaseModel):
+    email: str
+
+
+class AuthVerifyCodeIn(BaseModel):
+    email: str
+    code: str
+
+
+class AuthMeOut(BaseModel):
+    authenticated: bool
+    email: Optional[str] = None
+
+
+class AuthOkOut(BaseModel):
+    ok: bool = True
+
+
 # Backwards-compatible aliases (legacy endpoints/tests may still import these).
 SegmentOut = SegmentDetailOut
 ProjectOut = ProjectDetailOut

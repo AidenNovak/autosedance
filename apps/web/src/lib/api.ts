@@ -73,15 +73,23 @@ export type Job = {
   updated_at: string;
 };
 
+export type AuthMe = {
+  authenticated: boolean;
+  email?: string | null;
+};
+
 // Convenience aliases for older imports.
 export type Project = ProjectDetail;
 export type Segment = SegmentDetail;
 
-const BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+// Default to same-origin (/api) so you can expose only the frontend publicly and
+// proxy /api to the backend via Next rewrites (see next.config.mjs).
+const BASE = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/+$/, "");
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       ...(init?.headers || {}),
       ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" })
@@ -90,6 +98,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401) throw new Error("AUTH_REQUIRED");
     let detail = `${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
@@ -178,9 +187,11 @@ export async function uploadVideo(projectId: string, index: number, file: File):
   const res = await fetch(`${BASE}/api/projects/${projectId}/segments/${index}/video`, {
     method: "POST",
     body: form,
+    credentials: "include",
     cache: "no-store"
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error("AUTH_REQUIRED");
     let detail = `${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
@@ -221,6 +232,28 @@ export async function createJob(
 
 export async function getJob(projectId: string, jobId: string): Promise<Job> {
   return req<Job>(`/api/projects/${projectId}/jobs/${jobId}`);
+}
+
+export async function authMe(): Promise<AuthMe> {
+  return req<AuthMe>("/api/auth/me");
+}
+
+export async function authRequestCode(email: string): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("/api/auth/request_code", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+}
+
+export async function authVerifyCode(email: string, code: string): Promise<AuthMe> {
+  return req<AuthMe>("/api/auth/verify_code", {
+    method: "POST",
+    body: JSON.stringify({ email, code })
+  });
+}
+
+export async function authLogout(): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
 }
 
 export function backendUrl(): string {

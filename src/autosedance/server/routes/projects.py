@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from pathlib import Path
 from typing import List
 
@@ -9,18 +10,25 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from ...utils.video import concatenate_videos
+from ..auth import AuthUser, require_read_user, require_user
+from ..authz import require_project_owner
 from ..db import get_session
-from ..models import Project, Segment
+from ..models import Project, ProjectOwner, Segment
 from ..routes.common import project_to_detail_out, project_to_summary_out
 from ..schemas import CreateProjectIn, ProjectDetailOut, ProjectSummaryOut
 from ..storage import ensure_project_dirs, final_video_path
 from ..utils import now_utc, total_segments
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=ProjectDetailOut)
-def create_project(payload: CreateProjectIn, session: Session = Depends(get_session)) -> ProjectDetailOut:
+def create_project(
+    payload: CreateProjectIn,
+    user: AuthUser = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> ProjectDetailOut:
     if payload.total_duration_seconds <= 0:
         raise HTTPException(status_code=400, detail="total_duration_seconds must be > 0")
     if payload.segment_duration <= 0:
@@ -44,14 +52,27 @@ def create_project(payload: CreateProjectIn, session: Session = Depends(get_sess
     session.refresh(project)
 
     ensure_project_dirs(project.id)
+    if user.email:
+        session.add(ProjectOwner(project_id=project.id, email=user.email, created_at=now_utc()))
+        session.commit()
 
     segments: List[Segment] = []
     return project_to_detail_out(project, segments)
 
 
 @router.get("", response_model=List[ProjectSummaryOut])
-def list_projects(session: Session = Depends(get_session)) -> List[ProjectSummaryOut]:
-    projects = session.exec(select(Project).order_by(Project.created_at.desc())).all()
+def list_projects(
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+) -> List[ProjectSummaryOut]:
+    if user.email:
+        owners = session.exec(select(ProjectOwner).where(ProjectOwner.email == user.email)).all()
+        ids = [o.project_id for o in owners]
+        if not ids:
+            return []
+        projects = session.exec(select(Project).where(Project.id.in_(ids)).order_by(Project.created_at.desc())).all()
+    else:
+        projects = session.exec(select(Project).order_by(Project.created_at.desc())).all()
     if not projects:
         return []
 
@@ -69,8 +90,10 @@ def get_project(
     project_id: str,
     include_full_script: bool = True,
     include_canon: bool = True,
+    user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -84,7 +107,12 @@ def get_project(
 
 
 @router.post("/{project_id}/assemble", response_model=ProjectDetailOut)
-def assemble_project(project_id: str, session: Session = Depends(get_session)) -> ProjectDetailOut:
+def assemble_project(
+    project_id: str,
+    user: AuthUser = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -103,8 +131,9 @@ def assemble_project(project_id: str, session: Session = Depends(get_session)) -
 
     try:
         final_path = asyncio.run(concatenate_videos(video_paths, output_path))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Video assembly failed: {str(e)}")
+    except Exception:
+        logger.exception("Video assembly failed (project_id=%s)", project_id)
+        raise HTTPException(status_code=500, detail="Video assembly failed")
 
     project.final_video_path = str(Path(final_path))
     project.updated_at = now_utc()
@@ -118,7 +147,12 @@ def assemble_project(project_id: str, session: Session = Depends(get_session)) -
 
 
 @router.get("/{project_id}/final")
-def get_final_video(project_id: str, session: Session = Depends(get_session)):
+def get_final_video(
+    project_id: str,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+):
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

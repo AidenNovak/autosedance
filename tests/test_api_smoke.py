@@ -12,6 +12,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("OUTPUT_DIR", str(out_dir))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("DISABLE_WORKER", "1")
+    monkeypatch.setenv("AUTH_ENABLED", "0")
 
     from autosedance.config.settings import get_settings
 

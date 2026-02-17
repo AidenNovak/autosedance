@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ...nodes.scriptwriter import scriptwriter_node
+from ..auth import AuthUser, require_user
+from ..authz import require_project_owner
 from ..db import get_session
 from ..models import Project, Segment
 from ..routes.common import project_to_detail_out
@@ -14,6 +17,7 @@ from ..storage import atomic_write_text, full_script_path
 from ..utils import now_utc
 
 router = APIRouter(prefix="/api/projects", tags=["full_script"])
+logger = logging.getLogger(__name__)
 
 
 def _invalidate_all_segments(session: Session, project_id: str) -> None:
@@ -33,8 +37,10 @@ def _invalidate_all_segments(session: Session, project_id: str) -> None:
 def generate_full_script(
     project_id: str,
     payload: GenerateWithFeedbackIn,
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -57,8 +63,9 @@ def generate_full_script(
 
     try:
         result = asyncio.run(scriptwriter_node(state))  # type: ignore[arg-type]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Full script generation failed: {str(e)}")
+    except Exception:
+        logger.exception("Full script generation failed (project_id=%s)", project_id)
+        raise HTTPException(status_code=500, detail="Full script generation failed")
 
     script = (result.get("full_script") or "").strip()
     if not script:
@@ -80,8 +87,10 @@ def generate_full_script(
 def update_full_script(
     project_id: str,
     payload: UpdateFullScriptIn,
+    user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.email)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

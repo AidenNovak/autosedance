@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { useI18n } from "@/components/I18nProvider";
 import { createProject } from "@/lib/api";
+import { humanizeError } from "@/lib/errors";
 
 const DURATIONS = [30, 45, 60, 75, 90, 120, 180];
 
@@ -35,7 +36,7 @@ export default function NewProjectPage() {
       });
       router.push(`/projects/${proj.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("new.failed_create"));
+      setError(humanizeError(t, err, t("new.failed_create")));
     } finally {
       setLoading(false);
     }

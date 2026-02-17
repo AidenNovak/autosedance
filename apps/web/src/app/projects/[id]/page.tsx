@@ -15,6 +15,7 @@ import {
   updateSegment,
   uploadVideo
 } from "@/lib/api";
+import { humanizeError } from "@/lib/errors";
 import { useI18n } from "@/components/I18nProvider";
 
 function clamp(n: number, min: number, max: number) {
@@ -120,7 +121,7 @@ export default function ProjectPage() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("common.request_failed"));
+      setError(humanizeError(t, e, t("common.request_failed")));
     } finally {
       setBusy(null);
     }
@@ -170,7 +171,7 @@ export default function ProjectPage() {
         setSelectedIndex(idx);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : t("project.failed_load_project"));
+        setError(humanizeError(t, e, t("project.failed_load_project")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -192,7 +193,7 @@ export default function ProjectPage() {
         await refreshSegment(selectedIndex);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : t("project.failed_load_segment"));
+        setError(humanizeError(t, e, t("project.failed_load_segment")));
       }
     })();
     return () => {
