@@ -113,3 +113,13 @@ class ProjectOwner(SQLModel, table=True):
     project_id: str = Field(primary_key=True, foreign_key="project.id")
     email: str = Field(index=True)
     created_at: datetime = Field(default_factory=_utcnow)
+
+
+class RateLimitCounter(SQLModel, table=True):
+    """Windowed counter for simple API rate limiting (stored in DB for multi-process safety)."""
+
+    key: str = Field(primary_key=True)
+    count: int = 0
+    expires_at: datetime = Field(index=True)
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)

@@ -20,6 +20,7 @@ from ..auth import (
 from ..db import get_session
 from ..email import send_otp_email
 from ..models import AuthSession, EmailOtp
+from ..ratelimit import bump_counter, make_window_key, maybe_cleanup_expired
 from ..schemas import AuthMeOut, AuthOkOut, AuthRequestCodeIn, AuthVerifyCodeIn
 from ..utils import now_utc
 
@@ -69,8 +70,30 @@ def _clear_session_cookie(response: Response) -> None:
     )
 
 
+def _client_ip(request: Request) -> str:
+    settings = get_settings()
+    direct = (request.client.host if request.client else "") or "unknown"
+    if not settings.trust_proxy_headers:
+        return direct
+
+    trusted = [ip.strip() for ip in (settings.trusted_proxy_ips or "").split(",") if ip.strip()]
+    if trusted and direct not in trusted:
+        return direct
+
+    xff = (request.headers.get("x-forwarded-for") or "").strip()
+    if xff:
+        first = xff.split(",")[0].strip()
+        if first:
+            return first
+    xri = (request.headers.get("x-real-ip") or "").strip()
+    if xri:
+        return xri
+    return direct
+
+
 @router.post("/request_code", response_model=AuthOkOut)
 def request_code(
+    request: Request,
     payload: AuthRequestCodeIn,
     session: Session = Depends(get_session),
 ) -> AuthOkOut:
@@ -82,6 +105,21 @@ def request_code(
     _validate_email(email)
 
     now = now_utc()
+    maybe_cleanup_expired(session, now=now)
+
+    ip = _client_ip(request)
+    if int(settings.auth_rl_request_code_per_ip_per_hour) > 0:
+        key = make_window_key("auth:reqcode:ip", ip, now=now, window_seconds=3600)
+        n = bump_counter(session, key=key, now=now)
+        if n > int(settings.auth_rl_request_code_per_ip_per_hour):
+            raise HTTPException(status_code=429, detail="RL_LIMITED")
+
+    if int(settings.auth_rl_request_code_per_email_per_hour) > 0:
+        key = make_window_key("auth:reqcode:email", email, now=now, window_seconds=3600)
+        n = bump_counter(session, key=key, now=now)
+        if n > int(settings.auth_rl_request_code_per_email_per_hour):
+            raise HTTPException(status_code=429, detail="RL_LIMITED")
+
     latest = session.exec(
         select(EmailOtp).where(EmailOtp.email == email).order_by(EmailOtp.created_at.desc()).limit(1)
     ).first()
@@ -119,6 +157,7 @@ def request_code(
 
 @router.post("/verify_code", response_model=AuthMeOut)
 def verify_code(
+    request: Request,
     payload: AuthVerifyCodeIn,
     response: Response,
     session: Session = Depends(get_session),
@@ -135,6 +174,14 @@ def verify_code(
         raise HTTPException(status_code=400, detail="CODE_INVALID")
 
     now = now_utc()
+    maybe_cleanup_expired(session, now=now)
+    ip = _client_ip(request)
+    if int(settings.auth_rl_verify_per_ip_per_hour) > 0:
+        key = make_window_key("auth:verify:ip", ip, now=now, window_seconds=3600)
+        n = bump_counter(session, key=key, now=now)
+        if n > int(settings.auth_rl_verify_per_ip_per_hour):
+            raise HTTPException(status_code=429, detail="RL_LIMITED")
+
     stmt = (
         select(EmailOtp)
         .where(

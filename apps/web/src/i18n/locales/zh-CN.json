@@ -40,6 +40,7 @@
   "auth.err.email_not_allowed": "该邮箱不允许登录。",
   "auth.err.otp_too_frequent": "请求过于频繁，请稍后再试。",
   "auth.err.otp_send_failed": "验证码发送失败，请稍后再试。",
+  "auth.err.rl_limited": "操作过于频繁，请稍后再试。",
   "auth.err.code_invalid": "验证码错误。",
   "auth.err.code_expired": "验证码已过期，请重新获取。",
   "auth.err.internal_error": "内部错误，请稍后重试。",

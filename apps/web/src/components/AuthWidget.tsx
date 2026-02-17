@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { useI18n } from "@/components/I18nProvider";
@@ -23,6 +23,8 @@ function trAuthError(t: (k: string, p?: any) => string, raw: string): string {
       return t("auth.err.code_invalid");
     case "CODE_EXPIRED":
       return t("auth.err.code_expired");
+    case "RL_LIMITED":
+      return t("auth.err.rl_limited");
     case "INTERNAL_ERROR":
       return t("auth.err.internal_error");
     default:
@@ -34,6 +36,7 @@ export function AuthWidget() {
   const { t } = useI18n();
   const { me, loading, requestCode, verifyCode, logout } = useAuth();
 
+  const emailRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -46,6 +49,30 @@ export function AuthWidget() {
   const emailLabel = useMemo(() => {
     return (me?.email || "").trim();
   }, [me?.email]);
+
+  useEffect(() => {
+    function onAuthRequired() {
+      setOpen(true);
+      setStage("email");
+      setMsg(null);
+      setErr(null);
+      setCode("");
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("autos:auth_required", onAuthRequired);
+      return () => window.removeEventListener("autos:auth_required", onAuthRequired);
+    }
+    return;
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    // Wait for the details panel + input to mount.
+    const id = setTimeout(() => {
+      emailRef.current?.focus();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [open]);
 
   if (loading && !me) {
     return <span className="pill">{t("auth.loading")}</span>;
@@ -109,6 +136,7 @@ export function AuthWidget() {
               disabled={busy !== null || stage === "code"}
               inputMode="email"
               autoComplete="email"
+              ref={emailRef}
             />
           </div>
 
@@ -205,4 +233,3 @@ export function AuthWidget() {
     </details>
   );
 }
-

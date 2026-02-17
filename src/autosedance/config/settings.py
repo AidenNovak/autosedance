@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Upload limits
     max_upload_mb: int = 300
+    upload_validate_ffprobe: bool = True
 
     # Auth (email OTP)
     auth_enabled: bool = True
@@ -47,6 +48,15 @@ class Settings(BaseSettings):
     auth_session_ttl_days: int = 30
     auth_email_allowlist: str = ""  # comma-separated; empty means allow all
     auth_dev_print_code: bool = False  # dev-only: log OTP to server logs (no SMTP)
+
+    # Reverse proxy / real IP
+    trust_proxy_headers: bool = False
+    trusted_proxy_ips: str = ""  # comma-separated
+
+    # Rate limit (OTP)
+    auth_rl_request_code_per_ip_per_hour: int = 30
+    auth_rl_request_code_per_email_per_hour: int = 6
+    auth_rl_verify_per_ip_per_hour: int = 120
 
     # Session cookie
     session_cookie_name: str = "autos_session"

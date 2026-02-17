@@ -54,6 +54,7 @@ def test_api_happy_path_manual_upload(client, monkeypatch, tmp_path):
         return output_path
 
     monkeypatch.setattr(seg_routes, "extract_last_frame", fake_extract_last_frame)
+    monkeypatch.setattr(seg_routes, "validate_video_file", lambda *_args, **_kwargs: None)
 
     # Patch video assembly
     import autosedance.server.routes.projects as proj_routes

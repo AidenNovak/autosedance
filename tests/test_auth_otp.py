@@ -44,6 +44,44 @@ def client_auth(tmp_path, monkeypatch):
         yield c
 
 
+@pytest.fixture()
+def client_auth_rl(tmp_path, monkeypatch):
+    out_dir = tmp_path / "out"
+    db_path = tmp_path / "autosedance_test.sqlite3"
+
+    monkeypatch.setenv("OUTPUT_DIR", str(out_dir))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setenv("DISABLE_WORKER", "1")
+
+    monkeypatch.setenv("AUTH_ENABLED", "1")
+    monkeypatch.setenv("AUTH_REQUIRE_FOR_READS", "1")
+    monkeypatch.setenv("AUTH_REQUIRE_FOR_WRITES", "1")
+    monkeypatch.setenv("AUTH_SECRET_KEY", "test-secret")
+    monkeypatch.setenv("AUTH_OTP_MIN_INTERVAL_SECONDS", "0")
+    monkeypatch.setenv("AUTH_RL_REQUEST_CODE_PER_EMAIL_PER_HOUR", "1")
+
+    from autosedance.config.settings import get_settings
+
+    get_settings.cache_clear()
+
+    from autosedance.server.db import reset_engine_for_tests
+
+    reset_engine_for_tests()
+
+    import autosedance.server.routes.auth as auth_routes
+
+    def fake_send_otp_email(to_email: str, code: str, *, ttl_minutes: int) -> None:
+        return None
+
+    monkeypatch.setattr(auth_routes, "send_otp_email", fake_send_otp_email)
+
+    from autosedance.server.app import create_app
+
+    app = create_app()
+    with TestClient(app) as c:
+        yield c
+
+
 def test_auth_otp_flow_and_project_gating(client_auth):
     email = "test@example.com"
 
@@ -90,3 +128,12 @@ def test_auth_otp_flow_and_project_gating(client_auth):
     assert r.status_code == 200, r.text
     r = client_auth.get("/api/projects")
     assert r.status_code == 401, r.text
+
+
+def test_auth_request_code_rate_limited(client_auth_rl):
+    email = "test@example.com"
+    r = client_auth_rl.post("/api/auth/request_code", json={"email": email})
+    assert r.status_code == 200, r.text
+    r = client_auth_rl.post("/api/auth/request_code", json={"email": email})
+    assert r.status_code == 429, r.text
+    assert r.json().get("detail") == "RL_LIMITED"

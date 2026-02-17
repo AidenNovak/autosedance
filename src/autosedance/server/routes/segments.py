@@ -14,7 +14,7 @@ from ...config import get_settings
 from ...nodes.segmenter import segmenter_node
 from ...prompts.loader import get_analyzer_prompts
 from ...utils.canon import format_canon_summary
-from ...utils.video import extract_last_frame
+from ...utils.video import extract_last_frame, validate_video_file
 from ..auth import AuthUser, require_read_user, require_user
 from ..authz import require_project_owner
 from ..db import get_session
@@ -273,6 +273,23 @@ def upload_segment_video(
             file.file.close()
         except Exception:
             pass
+
+    if settings.upload_validate_ffprobe:
+        try:
+            validate_video_file(dst)
+        except ValueError:
+            try:
+                dst.unlink()
+            except Exception:
+                pass
+            raise HTTPException(status_code=400, detail="INVALID_VIDEO_FILE")
+        except Exception:
+            try:
+                dst.unlink()
+            except Exception:
+                pass
+            logger.exception("Video validation failed (project_id=%s index=%s)", project_id, index)
+            raise HTTPException(status_code=500, detail="VIDEO_VALIDATION_FAILED")
 
     warnings = []
     # Clear stale frame first; if extraction fails we should not keep an old frame.

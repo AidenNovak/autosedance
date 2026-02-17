@@ -40,6 +40,7 @@
   "auth.err.email_not_allowed": "This email is not allowed.",
   "auth.err.otp_too_frequent": "Please wait a bit before requesting another code.",
   "auth.err.otp_send_failed": "Failed to send code. Please try again later.",
+  "auth.err.rl_limited": "Too many attempts. Please try again later.",
   "auth.err.code_invalid": "Invalid code.",
   "auth.err.code_expired": "Code expired. Request a new one.",
   "auth.err.internal_error": "Internal error. Please try again.",

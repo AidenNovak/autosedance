@@ -40,6 +40,7 @@
   "auth.err.email_not_allowed": "هذا البريد الإلكتروني غير مسموح.",
   "auth.err.otp_too_frequent": "يرجى الانتظار قبل طلب رمز آخر.",
   "auth.err.otp_send_failed": "فشل إرسال الرمز. حاول لاحقًا.",
+  "auth.err.rl_limited": "محاولات كثيرة. حاول لاحقًا.",
   "auth.err.code_invalid": "رمز غير صالح.",
   "auth.err.code_expired": "انتهت صلاحية الرمز. اطلب رمزًا جديدًا.",
   "auth.err.internal_error": "خطأ داخلي. حاول مرة أخرى.",

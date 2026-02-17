@@ -91,6 +91,57 @@ def extract_last_frame(
     return output_path
 
 
+def validate_video_file(video_path: Union[str, Path]) -> None:
+    """Lightweight validation to ensure the uploaded file is a decodable video.
+
+    This is intentionally conservative: it should reject obvious non-video files
+    without being overly strict about container metadata (for example duration).
+    """
+
+    video_path = Path(video_path)
+    try:
+        if not video_path.exists() or video_path.stat().st_size <= 0:
+            raise ValueError("empty_file")
+    except FileNotFoundError:
+        raise ValueError("missing_file")
+
+    proc = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-of",
+            "json",
+            "-show_entries",
+            "stream=codec_type,width,height,codec_name",
+            str(video_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffprobe_failed: {proc.stderr.strip()[:200]}")
+
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except Exception as e:
+        raise RuntimeError(f"ffprobe_invalid_json: {e}")
+
+    streams = data.get("streams") or []
+    for st in streams:
+        if st.get("codec_type") != "video":
+            continue
+        try:
+            w = int(st.get("width") or 0)
+            h = int(st.get("height") or 0)
+        except Exception:
+            w, h = 0, 0
+        if w > 0 and h > 0:
+            return
+
+    raise ValueError("no_video_stream")
+
+
 def _truncate_bytes(data: bytes, max_len: int = 4096) -> bytes:
     if len(data) <= max_len:
         return data

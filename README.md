@@ -65,6 +65,15 @@ AUTH_ENABLED=1
 AUTH_SECRET_KEY=change_me_to_a_long_random_string
 SMTP_USER=2453204059@qq.com
 SMTP_PASSWORD=your_qq_smtp_authorization_code
+
+# (可选) 反代后获取真实 IP（Nginx 反代到 127.0.0.1 时推荐）
+# TRUST_PROXY_HEADERS=1
+# TRUSTED_PROXY_IPS=127.0.0.1
+
+# (可选) OTP 限流（后端基础限流；云上建议再用 Nginx 限流一层）
+# AUTH_RL_REQUEST_CODE_PER_IP_PER_HOUR=30
+# AUTH_RL_REQUEST_CODE_PER_EMAIL_PER_HOUR=6
+# AUTH_RL_VERIFY_PER_IP_PER_HOUR=120
 ```
 
 如果你在启用登录前已经有旧的 SQLite 数据库项目，可以用脚本把历史项目统一归属到某个邮箱：
@@ -114,6 +123,13 @@ autosedance -p "小猫在花园里玩耍" -d 30 -m wan
 ### Archive / Legacy
 
 一些历史脚本与说明文档已归档到 `archive/`，不影响 Web UI 使用。
+
+如果你的 `output/` 下还残留旧的 top-level 目录（例如 `output/videos` / `output/frames` / `output/final`），
+可以用脚本把它们移动到时间戳归档目录，不影响 Web UI：
+
+```bash
+python3 scripts/archive_legacy_output.py
+```
 
 ## 工作流程
 

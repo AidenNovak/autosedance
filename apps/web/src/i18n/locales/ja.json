@@ -40,6 +40,7 @@
   "auth.err.email_not_allowed": "このメールアドレスは許可されていません。",
   "auth.err.otp_too_frequent": "少し待ってから再度コードをリクエストしてください。",
   "auth.err.otp_send_failed": "コードの送信に失敗しました。後でもう一度お試しください。",
+  "auth.err.rl_limited": "試行回数が多すぎます。しばらくしてからお試しください。",
   "auth.err.code_invalid": "コードが正しくありません。",
   "auth.err.code_expired": "コードの有効期限が切れました。新しいコードを取得してください。",
   "auth.err.internal_error": "内部エラーです。もう一度お試しください。",
