@@ -24,6 +24,10 @@ function pad3(n: number) {
   return n.toString().padStart(3, "0");
 }
 
+function pad3Display(index0: number) {
+  return pad3(index0 + 1);
+}
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -200,6 +204,14 @@ export default function ProjectPage() {
     return project.segments.find((s) => s.index === selectedIndex) || null;
   }, [project, selectedIndex]);
 
+  const canUpload = useMemo(() => {
+    if (selectedSummary?.has_video) return true;
+    if (segment?.video_url) return true;
+    const script = (segment?.segment_script || "").trim();
+    const prompt = (segment?.video_prompt || "").trim();
+    return script.length > 0 || prompt.length > 0;
+  }, [selectedSummary?.has_video, segment?.video_url, segment?.segment_script, segment?.video_prompt]);
+
   const completedCount = useMemo(() => {
     if (!project) return 0;
     return project.segments.filter((s) => s.status === "completed").length;
@@ -268,15 +280,17 @@ export default function ProjectPage() {
           </span>
         </div>
         <div className="bd" style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gap: 10 }}>
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <span className="pill">{project.next_action}</span>
-              <span className="pill">current: {project.current_segment_index}</span>
-            </div>
-            <div className="row">
-              <button
-                className="btn"
-                onClick={() =>
+            <div style={{ display: "grid", gap: 10 }}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="pill">{project.next_action}</span>
+                <span className="pill">
+                  current: {project.current_segment_index >= project.num_segments ? "done" : project.current_segment_index + 1}
+                </span>
+              </div>
+              <div className="row">
+                <button
+                  className="btn"
+                  onClick={() =>
                   run("refresh_project", async () => {
                     await refreshProject({ include_full_script: false, include_canon: false });
                   })
@@ -305,12 +319,12 @@ export default function ProjectPage() {
                     className={`segitem${active ? " active" : ""}`}
                     onClick={() => setSelectedIndex(s.index)}
                     disabled={locked}
-                    title={`segment ${s.index} · ${s.status}`}
+                    title={`segment ${s.index + 1} · ${s.status}`}
                   >
                     <span className={statusDotClass(s.status)} />
                     <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0, textAlign: "left" }}>
                       <div className="segtitle">
-                        #{pad3(s.index)}{" "}
+                        #{pad3Display(s.index)}{" "}
                         {s.index === project.current_segment_index ? <span className="pill tiny">current</span> : null}
                       </div>
                       <div className="segmeta">
@@ -458,7 +472,7 @@ export default function ProjectPage() {
           <div className="card">
             <div className="hd">
               <h2>
-                Segment #{pad3(selectedIndex)}{" "}
+                Segment #{pad3Display(selectedIndex)}{" "}
                 {timeRange ? <span className="pill tiny">{timeRange}</span> : null}
               </h2>
               <span className="pill">{(segment?.status || selectedSummary?.status || "pending") as any}</span>
@@ -559,16 +573,20 @@ export default function ProjectPage() {
               <h2>Upload + Frame + Analyze</h2>
               <span className="pill">mp4 upload</span>
             </div>
-            <div className="bd" style={{ display: "grid", gap: 12 }}>
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <div className="muted">Upload segment_{pad3(selectedIndex)}.*</div>
-                <label className="btn">
+              <div className="bd" style={{ display: "grid", gap: 12 }}>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                <div className="muted">Upload video for Segment #{pad3Display(selectedIndex)}</div>
+                <label
+                  className="btn"
+                  style={!canUpload || locked ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                  title={!canUpload ? "Generate segment first" : undefined}
+                >
                   {busy === "upload" ? "Uploading…" : "Choose File"}
                   <input
                     type="file"
                     accept="video/*"
                     style={{ display: "none" }}
-                    disabled={locked}
+                    disabled={locked || !canUpload}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
@@ -584,6 +602,12 @@ export default function ProjectPage() {
                   />
                 </label>
               </div>
+
+              {!loadingSegment && !canUpload ? (
+                <div style={{ color: "var(--accent)", fontSize: 13, lineHeight: 1.5 }}>
+                  请先 Generate Segment（生成脚本/Prompt）后再上传。
+                </div>
+              ) : null}
 
               {videoSrc ? <video className="video" controls src={videoSrc} /> : <div className="muted">No uploaded video yet.</div>}
 
@@ -620,7 +644,7 @@ export default function ProjectPage() {
                     const url = `${backendUrl()}/api/projects/${projectId}/segments/${selectedIndex}/frame/download`;
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `frame_${pad3(selectedIndex)}.jpg`;
+                    a.download = `frame_${pad3Display(selectedIndex)}.jpg`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();

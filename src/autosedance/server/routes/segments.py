@@ -417,5 +417,5 @@ def download_segment_frame(project_id: str, index: int, session: Session = Depen
         raise HTTPException(status_code=404, detail="Frame file missing on disk")
 
     ext = path.suffix if path.suffix else ".jpg"
-    filename = f"frame_{index:03d}{ext}"
+    filename = f"frame_{index + 1:03d}{ext}"
     return FileResponse(str(path), filename=filename)

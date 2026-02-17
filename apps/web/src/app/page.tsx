@@ -82,7 +82,8 @@ export default function HomePage() {
                     </div>
                     <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
                       videos: {p.segments_with_video} · frames: {p.segments_with_frame} · desc:{" "}
-                      {p.segments_with_description} · current segment: {p.current_segment_index}
+                      {p.segments_with_description} · current segment:{" "}
+                      {p.current_segment_index >= p.num_segments ? "done" : p.current_segment_index + 1}
                     </div>
                   </div>
                 </Link>
