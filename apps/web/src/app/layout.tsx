@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${sans.variable} ${serif.variable} ${mono.variable}`}
     >
       <body>
-        <I18nProvider initialLocale={locale} initialMessages={messages}>
+        <I18nProvider initialLocale={locale}>
           <div className="topbar">
             <div className="container">
               <div className="topbar-inner">

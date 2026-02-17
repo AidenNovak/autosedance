@@ -16,7 +16,6 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider(props: {
   initialLocale: Locale;
-  initialMessages: Messages;
   children: React.ReactNode;
 }) {
   const [locale, setLocale] = useState<Locale>(props.initialLocale);
@@ -39,4 +38,3 @@ export function useI18n(): I18nContextValue {
   if (!ctx) throw new Error("useI18n must be used within <I18nProvider>");
   return ctx;
 }
-
