@@ -1,0 +1,328 @@
+from __future__ import annotations
+
+import asyncio
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from sqlmodel import Session, select
+
+from ...clients.doubao import DoubaoClient
+from ...nodes.segmenter import segmenter_node
+from ...prompts.analyzer import ANALYZER_SYSTEM, ANALYZER_USER
+from ...utils.video import extract_last_frame
+from ..db import get_session
+from ..models import Project, Segment
+from ..routes.common import project_to_out, segment_to_out
+from ..schemas import GenerateWithFeedbackIn, ProjectOut, SegmentOut, UpdateSegmentIn
+from ..storage import (
+    atomic_write_text,
+    frame_path,
+    input_video_path,
+    segment_txt_path,
+)
+from ..utils import (
+    append_canon,
+    canon_before_index,
+    export_segment_text,
+    now_utc,
+    time_range,
+    total_segments,
+)
+
+router = APIRouter(prefix="/api/projects", tags=["segments"])
+
+
+def _get_segment(session: Session, project_id: str, index: int) -> Optional[Segment]:
+    stmt = select(Segment).where(Segment.project_id == project_id, Segment.index == index)
+    return session.exec(stmt).first()
+
+
+def _invalidate_downstream_segments(session: Session, project_id: str, index: int) -> None:
+    segs = session.exec(
+        select(Segment).where(Segment.project_id == project_id, Segment.index > index)
+    ).all()
+    for s in segs:
+        s.status = "pending"
+        s.segment_script = ""
+        s.video_prompt = ""
+        s.video_path = None
+        s.video_description = None
+        s.last_frame_path = None
+        s.updated_at = now_utc()
+        session.add(s)
+
+
+def _latest_frame_before(session: Session, project_id: str, index: int) -> Optional[str]:
+    stmt = (
+        select(Segment)
+        .where(Segment.project_id == project_id, Segment.index < index, Segment.last_frame_path.is_not(None))
+        .order_by(Segment.index.desc())
+    )
+    seg = session.exec(stmt).first()
+    return seg.last_frame_path if seg else None
+
+
+@router.post("/{project_id}/segments/{index}/generate", response_model=ProjectOut)
+def generate_segment(
+    project_id: str,
+    index: int,
+    payload: GenerateWithFeedbackIn,
+    session: Session = Depends(get_session),
+) -> ProjectOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not (project.full_script or "").strip():
+        raise HTTPException(status_code=400, detail="full_script is empty; generate it first")
+
+    expected = total_segments(project)
+    if index < 0 or index >= expected:
+        raise HTTPException(status_code=400, detail=f"index out of range (0..{expected - 1})")
+
+    # Default: regenerating a segment invalidates later segments.
+    _invalidate_downstream_segments(session, project_id, index)
+    project.canon_summaries = canon_before_index(project.canon_summaries or "", index)
+    project.last_frame_path = _latest_frame_before(session, project_id, index)
+    project.final_video_path = None
+
+    full_script = project.full_script or ""
+    if payload.feedback:
+        full_script = f"{full_script}\n\n## 用户反馈/补充要求（针对本片段生成）\n{payload.feedback.strip()}"
+
+    state = {
+        "full_script": full_script,
+        "canon_summaries": project.canon_summaries or "",
+        "current_segment_index": index,
+        "segment_duration": project.segment_duration,
+        "total_duration_seconds": project.total_duration_seconds,
+    }
+
+    try:
+        result = asyncio.run(segmenter_node(state))  # type: ignore[arg-type]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Segment generation failed: {str(e)}")
+
+    seg_records = result.get("segments") or []
+    if not seg_records:
+        raise HTTPException(status_code=500, detail="No segment record returned")
+
+    seg_record = seg_records[0]
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        seg = Segment(project_id=project_id, index=index)
+
+    seg.segment_script = seg_record.segment_script or ""
+    seg.video_prompt = seg_record.video_prompt or ""
+    # Regenerating script/prompt implies uploaded video/analysis are stale.
+    seg.video_path = None
+    seg.video_description = None
+    seg.last_frame_path = None
+    seg.status = "script_ready"
+    seg.updated_at = now_utc()
+
+    session.add(seg)
+
+    # If generating the current segment, move the pointer here.
+    project.current_segment_index = index
+    project.updated_at = now_utc()
+    session.add(project)
+
+    session.commit()
+    session.refresh(project)
+
+    atomic_write_text(segment_txt_path(project_id, index), export_segment_text(project, seg))
+
+    segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
+    return project_to_out(project, segs)
+
+
+@router.put("/{project_id}/segments/{index}", response_model=ProjectOut)
+def update_segment(
+    project_id: str,
+    index: int,
+    payload: UpdateSegmentIn,
+    session: Session = Depends(get_session),
+) -> ProjectOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        seg = Segment(project_id=project_id, index=index)
+
+    if payload.segment_script is not None:
+        seg.segment_script = payload.segment_script
+    if payload.video_prompt is not None:
+        seg.video_prompt = payload.video_prompt
+
+    # Editing script/prompt implies uploaded video/analysis are stale.
+    if payload.segment_script is not None or payload.video_prompt is not None:
+        seg.video_path = None
+        seg.video_description = None
+        seg.last_frame_path = None
+
+    seg.status = "script_ready"
+    seg.updated_at = now_utc()
+    session.add(seg)
+
+    if payload.invalidate_downstream:
+        _invalidate_downstream_segments(session, project_id, index)
+        project.canon_summaries = canon_before_index(project.canon_summaries or "", index)
+        project.last_frame_path = _latest_frame_before(session, project_id, index)
+        project.final_video_path = None
+        project.current_segment_index = index
+        project.updated_at = now_utc()
+        session.add(project)
+
+    session.commit()
+    session.refresh(project)
+
+    atomic_write_text(segment_txt_path(project_id, index), export_segment_text(project, seg))
+
+    segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
+    return project_to_out(project, segs)
+
+
+@router.post("/{project_id}/segments/{index}/video", response_model=SegmentOut)
+def upload_segment_video(
+    project_id: str,
+    index: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+) -> SegmentOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        raise HTTPException(status_code=400, detail="Segment not found; generate or create it first")
+
+    dst = input_video_path(project_id, index, original_filename=file.filename)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with dst.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+    finally:
+        try:
+            file.file.close()
+        except Exception:
+            pass
+
+    seg.video_path = str(dst)
+    seg.video_description = None
+    seg.last_frame_path = None
+    seg.status = "waiting_video"
+    seg.updated_at = now_utc()
+    session.add(seg)
+
+    # Any change to inputs invalidates prior final assembly.
+    project.final_video_path = None
+    project.updated_at = now_utc()
+    session.add(project)
+
+    session.commit()
+    session.refresh(seg)
+
+    return segment_to_out(project_id, seg)
+
+
+@router.get("/{project_id}/segments/{index}/video")
+def get_segment_video(project_id: str, index: int, session: Session = Depends(get_session)):
+    seg = _get_segment(session, project_id, index)
+    if seg is None or not seg.video_path:
+        raise HTTPException(status_code=404, detail="Video not found")
+    path = Path(seg.video_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Video file missing on disk")
+    return FileResponse(str(path))
+
+
+@router.post("/{project_id}/segments/{index}/analyze", response_model=ProjectOut)
+def analyze_segment(project_id: str, index: int, session: Session = Depends(get_session)) -> ProjectOut:
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    if not seg.video_path:
+        raise HTTPException(status_code=400, detail="Segment has no uploaded video")
+    if not Path(seg.video_path).exists():
+        raise HTTPException(status_code=400, detail="Uploaded video path missing on disk")
+
+    seg.status = "analyzing"
+    seg.updated_at = now_utc()
+    session.add(seg)
+    session.commit()
+    session.refresh(seg)
+
+    # Extract last frame
+    frame_out = frame_path(project_id, index, ext=".jpg")
+    try:
+        last_frame = extract_last_frame(seg.video_path, frame_out)
+    except Exception as e:
+        seg.status = "failed"
+        seg.updated_at = now_utc()
+        session.add(seg)
+        session.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to extract frame: {str(e)}")
+
+    start, end = time_range(project, index)
+
+    # Multimodal analysis
+    client = DoubaoClient()
+    try:
+        description = asyncio.run(
+            client.chat_with_image(
+                system_prompt=ANALYZER_SYSTEM,
+                user_message=ANALYZER_USER.format(
+                    segment_script=seg.segment_script,
+                    time_range=f"{start}s-{end}s",
+                ),
+                image_path=str(last_frame),
+            )
+        )
+    except Exception as e:
+        seg.status = "failed"
+        seg.updated_at = now_utc()
+        session.add(seg)
+        session.commit()
+        raise HTTPException(status_code=500, detail=f"Video analysis failed: {str(e)}")
+
+    seg.video_description = description
+    seg.last_frame_path = str(last_frame)
+    seg.status = "completed"
+    seg.updated_at = now_utc()
+    session.add(seg)
+
+    summary = f"片段{index}({start}s-{end}s): {description}"
+    project.canon_summaries = append_canon(project.canon_summaries or "", summary)
+    project.last_frame_path = seg.last_frame_path
+    project.current_segment_index = index + 1
+    project.final_video_path = None
+    project.updated_at = now_utc()
+    session.add(project)
+
+    session.commit()
+    session.refresh(project)
+
+    segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
+    return project_to_out(project, segs)
+
+
+@router.get("/{project_id}/segments/{index}/frame")
+def get_segment_frame(project_id: str, index: int, session: Session = Depends(get_session)):
+    seg = _get_segment(session, project_id, index)
+    if seg is None or not seg.last_frame_path:
+        raise HTTPException(status_code=404, detail="Frame not found")
+    path = Path(seg.last_frame_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Frame file missing on disk")
+    return FileResponse(str(path))

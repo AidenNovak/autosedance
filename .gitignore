@@ -1,0 +1,22 @@
+.env
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+*.pid
+.DS_Store
+
+# Python build
+dist/
+build/
+*.egg-info/
+
+# Outputs
+output/
+
+# Node / Next
+node_modules/
+.next/
+apps/web/node_modules/
+apps/web/.next/
