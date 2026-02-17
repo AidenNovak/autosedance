@@ -4,8 +4,9 @@ from pathlib import Path
 
 from ..clients.doubao import DoubaoClient
 from ..config import get_settings
-from ..prompts.analyzer import ANALYZER_SYSTEM, ANALYZER_USER
+from ..prompts.loader import get_analyzer_prompts
 from ..state.schema import GraphState, SegmentRecord
+from ..utils.canon import append_canon, format_canon_summary
 from ..utils.video import extract_last_frame
 
 
@@ -48,9 +49,10 @@ async def analyzer_node(state: GraphState) -> dict:
 
     # 视频理解（使用最后一帧）
     try:
+        prompts = get_analyzer_prompts(state.get("locale"))
         description = await client.chat_with_image(
-            system_prompt=ANALYZER_SYSTEM,
-            user_message=ANALYZER_USER.format(
+            system_prompt=prompts.system,
+            user_message=prompts.user.format(
                 segment_script=current_segment.segment_script,
                 time_range=f"{start_time}s-{end_time}s",
             ),
@@ -60,9 +62,8 @@ async def analyzer_node(state: GraphState) -> dict:
         return {"error": f"Video analysis failed: {str(e)}"}
 
     # 更新总结（添加分隔符便于滑动窗口处理）
-    new_summary = f"片段{idx}({start_time}s-{end_time}s): {description}"
-    prior = state.get("canon_summaries") or ""
-    updated_canon = f"{prior}\n---\n{new_summary}" if prior else new_summary
+    new_summary = format_canon_summary(idx, start_time, end_time, description)
+    updated_canon = append_canon(state.get("canon_summaries") or "", new_summary)
 
     # 更新片段记录
     data = current_segment.model_dump()

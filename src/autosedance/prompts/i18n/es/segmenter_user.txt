@@ -1,0 +1,20 @@
+## Guion maestro
+{full_script}
+
+## Resúmenes de continuidad (finales de segmentos anteriores; puede estar vacío)
+{canon_summaries}
+
+## Punto de tiempo actual
+{current_time}s
+
+## Comentarios opcionales
+{feedback}
+
+## Importante
+1. Si es el primer segmento, crea un fotograma de apertura fuerte basado en el guion.
+2. Si hay resúmenes de continuidad, debes continuar el último fotograma y el estado de los personajes.
+3. Mantén el prompt concreto, visual y con lenguaje de cámara; evita lo abstracto.
+4. Haz explícito el fotograma final para que el siguiente segmento continúe sin cortes.
+
+Por favor genera el JSON para este segmento.
+

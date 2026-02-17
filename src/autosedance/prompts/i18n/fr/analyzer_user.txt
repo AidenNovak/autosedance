@@ -1,0 +1,13 @@
+Merci d’analyser cette capture (c’est la dernière image de la vidéo importée).
+
+## Contenu attendu (script)
+{segment_script}
+
+## Plage de temps
+{time_range}
+
+## Tâches
+1. Décris ce qui apparaît réellement dans l’image et compare avec le contenu attendu.
+2. Concentre-toi sur l’état de la dernière image afin que le segment suivant s’enchaîne sans coupe.
+3. Signale les éléments de continuité à garder cohérents.
+

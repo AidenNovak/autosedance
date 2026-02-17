@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 
 import type { ProjectSummary } from "@/lib/api";
 import { backendUrl, listProjects } from "@/lib/api";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function HomePage() {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export default function HomePage() {
       const data = await listProjects();
       setProjects(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load projects");
+      setError(e instanceof Error ? e.message : t("home.projects.failed_load"));
     } finally {
       setLoading(false);
     }
@@ -32,22 +34,22 @@ export default function HomePage() {
     <div className="grid two">
       <div className="card">
         <div className="hd">
-          <h2>Projects</h2>
+          <h2>{t("home.projects.title")}</h2>
           <div className="row">
             <button className="btn" onClick={refresh} disabled={loading}>
-              Refresh
+              {t("common.refresh")}
             </button>
             <Link className="btn primary" href="/new">
-              New
+              {t("common.new")}
             </Link>
           </div>
         </div>
         <div className="bd">
           {error ? <div style={{ color: "var(--danger)" }}>{error}</div> : null}
           {loading ? (
-            <div className="muted">Loading…</div>
+            <div className="muted">{t("common.loading")}</div>
           ) : projects.length === 0 ? (
-            <div className="muted">No projects yet.</div>
+            <div className="muted">{t("home.projects.empty")}</div>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {projects.map((p) => (
@@ -59,31 +61,41 @@ export default function HomePage() {
                 >
                   <div className="hd">
                     <h2 style={{ fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {p.user_prompt.slice(0, 56) || "(empty prompt)"}
+                      {p.user_prompt.slice(0, 56) || t("home.projects.empty_prompt")}
                     </h2>
-                    <span className="pill">{p.next_action}</span>
+                    <span className="pill">
+                      {(() => {
+                        const key = `next.${p.next_action}`;
+                        const label = t(key);
+                        return label === key ? p.next_action : label;
+                      })()}
+                    </span>
                   </div>
                   <div className="bd">
                     <div className="kvs">
                       <div className="kv">
-                        <div className="k">Duration</div>
+                        <div className="k">{t("home.projects.duration")}</div>
                         <div className="v">{p.total_duration_seconds}s</div>
                       </div>
                       <div className="kv">
-                        <div className="k">Segments</div>
+                        <div className="k">{t("home.projects.segments")}</div>
                         <div className="v">
                           {p.segments_completed}/{p.num_segments}
                         </div>
                       </div>
                       <div className="kv">
-                        <div className="k">Pacing</div>
+                        <div className="k">{t("home.projects.pacing")}</div>
                         <div className="v">{p.pacing}</div>
                       </div>
                     </div>
                     <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
-                      videos: {p.segments_with_video} · frames: {p.segments_with_frame} · desc:{" "}
-                      {p.segments_with_description} · current segment:{" "}
-                      {p.current_segment_index >= p.num_segments ? "done" : p.current_segment_index + 1}
+                      {t("home.projects.stats", {
+                        videos: p.segments_with_video,
+                        frames: p.segments_with_frame,
+                        desc: p.segments_with_description,
+                        current:
+                          p.current_segment_index >= p.num_segments ? t("common.done") : String(p.current_segment_index + 1)
+                      })}
                     </div>
                   </div>
                 </Link>
@@ -95,20 +107,19 @@ export default function HomePage() {
 
       <div className="card">
         <div className="hd">
-          <h2>Backend</h2>
+          <h2>{t("home.backend.title")}</h2>
           <span className="pill">{backendUrl()}</span>
         </div>
         <div className="bd">
           <div className="muted" style={{ lineHeight: 1.6 }}>
-            Flow: generate full script (in0) → generate a 15s segment (inN) → upload video → analyze last frame (inNB +
-            1l.png) → repeat → assemble.
+            {t("home.backend.flow")}
           </div>
           <div style={{ height: 12 }} />
           <div className="muted" style={{ lineHeight: 1.6 }}>
-            Tips:
-            <div>1. Start with “New Project”.</div>
-            <div>2. Keep duration a multiple of 15 for clean segment boundaries.</div>
-            <div>3. Upload extracts the last frame immediately; Analyze generates inNB and advances continuity.</div>
+            {t("home.backend.tips")}
+            <div>{t("home.backend.tip1")}</div>
+            <div>{t("home.backend.tip2")}</div>
+            <div>{t("home.backend.tip3")}</div>
           </div>
         </div>
       </div>

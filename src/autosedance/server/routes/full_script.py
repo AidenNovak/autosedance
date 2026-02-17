@@ -46,14 +46,11 @@ def generate_full_script(
     project.last_frame_path = None
     project.final_video_path = None
 
-    user_prompt = project.user_prompt.strip()
-    if project.pacing:
-        user_prompt = f"{user_prompt}\n\n节奏偏好: {project.pacing}"
-    if payload.feedback:
-        user_prompt = f"{user_prompt}\n\n用户反馈/补充要求:\n{payload.feedback.strip()}"
-
     state = {
-        "user_prompt": user_prompt,
+        "locale": None,
+        "user_prompt": project.user_prompt.strip(),
+        "pacing": project.pacing or "",
+        "feedback": payload.feedback.strip() if payload.feedback else "",
         "total_duration_seconds": project.total_duration_seconds,
         "segment_duration": project.segment_duration,
     }

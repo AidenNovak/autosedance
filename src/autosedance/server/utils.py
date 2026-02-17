@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-import re
 from typing import List, Tuple
 
 from .models import Project, Segment
+from ..utils.canon import append_canon, canon_before_index, canon_recent, format_canon_summary
 
 
 def total_segments(project: Project) -> int:
@@ -18,43 +18,6 @@ def time_range(project: Project, index: int) -> Tuple[int, int]:
     start = index * seg
     end = min((index + 1) * seg, int(project.total_duration_seconds))
     return start, end
-
-
-def split_canon(canon_summaries: str) -> List[str]:
-    canon_summaries = canon_summaries or ""
-    parts = [p.strip() for p in canon_summaries.split("\n---\n") if p.strip()]
-    return parts
-
-
-def canon_recent(canon_summaries: str, keep: int = 3) -> str:
-    parts = split_canon(canon_summaries)
-    if not parts:
-        return "尚未生成任何片段"
-    return "\n---\n".join(parts[-keep:])
-
-
-def append_canon(canon_summaries: str, summary: str) -> str:
-    canon_summaries = canon_summaries or ""
-    summary = (summary or "").strip()
-    if not summary:
-        return canon_summaries
-    if not canon_summaries.strip():
-        return summary
-    return f"{canon_summaries}\n---\n{summary}"
-
-
-def canon_before_index(canon_summaries: str, index: int) -> str:
-    """Keep only canon summary items for segments strictly before `index`."""
-    kept: List[str] = []
-    for item in split_canon(canon_summaries or ""):
-        m = re.match(r"^片段(\d+)\(", item)
-        if m:
-            if int(m.group(1)) < index:
-                kept.append(item)
-        else:
-            # If the item doesn't match our format, keep it to avoid data loss.
-            kept.append(item)
-    return "\n---\n".join(kept)
 
 
 def now_utc() -> datetime:

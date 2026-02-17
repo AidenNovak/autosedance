@@ -211,7 +211,7 @@ export async function assemble(projectId: string): Promise<ProjectDetail> {
 
 export async function createJob(
   projectId: string,
-  input: { type: Job["type"]; index?: number; feedback?: string }
+  input: { type: Job["type"]; index?: number; feedback?: string; locale?: string }
 ): Promise<Job> {
   return req<Job>(`/api/projects/${projectId}/jobs`, {
     method: "POST",

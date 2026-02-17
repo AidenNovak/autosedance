@@ -1,0 +1,15 @@
+Demande de l’utilisateur :
+{user_prompt}
+
+Préférence de rythme (optionnel) :
+{pacing}
+
+Retours / exigences supplémentaires (optionnel) :
+{feedback}
+
+Merci d’écrire un script au format storyboard, avec des visuels riches.
+Rappels :
+1. Chaque segment doit contenir des descriptions de plans concrètes.
+2. Chaque segment doit se terminer par une ancre claire de la dernière image pour la continuité.
+3. Garde des descriptions spécifiques et actionnables pour la génération vidéo.
+

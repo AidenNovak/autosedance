@@ -4,8 +4,9 @@ import json
 import re
 
 from ..clients.doubao import DoubaoClient
-from ..prompts.segmenter import SEGMENTER_SYSTEM, SEGMENTER_USER
+from ..prompts.loader import get_segmenter_prompts
 from ..state.schema import GraphState, SegmentRecord
+from ..utils.canon import canon_recent
 
 
 def extract_json(text: str) -> dict:
@@ -56,24 +57,19 @@ async def segmenter_node(state: GraphState) -> dict:
     end_time = min((idx + 1) * seg_duration, state["total_duration_seconds"])
 
     # 获取已有片段的总结（使用滑动窗口，只保留最近3个）
-    canon = state.get("canon_summaries", "")
-    if canon:
-        summaries = canon.split("\n---\n")
-        if len(summaries) > 3:
-            summaries = summaries[-3:]
-        canon_recent = "\n---\n".join(summaries)
-    else:
-        canon_recent = "尚未生成任何片段"
+    canon_recent_text = canon_recent(state.get("canon_summaries", "") or "", keep=3)
 
+    prompts = get_segmenter_prompts(state.get("locale"))
     response = await client.chat(
-        system_prompt=SEGMENTER_SYSTEM.format(
-            segment_index=idx,
+        system_prompt=prompts.system.format(
+            segment_index=idx + 1,
             time_range=f"{start_time}s-{end_time}s",
         ),
-        user_message=SEGMENTER_USER.format(
+        user_message=prompts.user.format(
             full_script=state["full_script"],
-            canon_summaries=canon_recent,
+            canon_summaries=canon_recent_text,
             current_time=end_time,
+            feedback=(state.get("feedback") or "").strip(),
         ),
     )
 

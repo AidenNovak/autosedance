@@ -12,7 +12,8 @@ from sqlmodel import Session, select
 from ..clients.doubao import DoubaoClient
 from ..nodes.scriptwriter import scriptwriter_node
 from ..nodes.segmenter import segmenter_node
-from ..prompts.analyzer import ANALYZER_SYSTEM, ANALYZER_USER
+from ..prompts.loader import get_analyzer_prompts
+from ..utils.canon import format_canon_summary
 from ..utils.video import concatenate_videos, extract_last_frame
 from .db import get_engine
 from .models import Job, Project, Segment
@@ -147,14 +148,12 @@ def _run_full_script_job(session: Session, job: Job) -> dict:
     session.refresh(project)
 
     user_prompt = project.user_prompt.strip()
-    if project.pacing:
-        user_prompt = f"{user_prompt}\n\n节奏偏好: {project.pacing}"
     feedback = (payload.get("feedback") or "").strip()
-    if feedback:
-        user_prompt = f"{user_prompt}\n\n用户反馈/补充要求:\n{feedback}"
-
     state = {
+        "locale": payload.get("locale"),
         "user_prompt": user_prompt,
+        "pacing": project.pacing or "",
+        "feedback": feedback,
         "total_duration_seconds": project.total_duration_seconds,
         "segment_duration": project.segment_duration,
     }
@@ -207,18 +206,18 @@ def _run_segment_generate_job(session: Session, job: Job) -> dict:
 
     full_script = project.full_script or ""
     feedback = (payload.get("feedback") or "").strip()
-    if feedback:
-        full_script = f"{full_script}\n\n## 用户反馈/补充要求（针对本片段生成）\n{feedback}"
 
     state = {
+        "locale": payload.get("locale"),
         "full_script": full_script,
         "canon_summaries": canon_recent(project.canon_summaries or "", keep=3),
         "current_segment_index": idx,
+        "feedback": feedback,
         "segment_duration": project.segment_duration,
         "total_duration_seconds": project.total_duration_seconds,
     }
 
-    _set_job(session, job, progress=20, message=f"Calling LLM (segment {idx})")
+    _set_job(session, job, progress=20, message=f"Calling LLM (segment {idx + 1})")
     result = asyncio.run(segmenter_node(state))  # type: ignore[arg-type]
     seg_records = result.get("segments") or []
     if not seg_records:
@@ -318,10 +317,11 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     start, end = time_range(project, idx)
     _set_job(session, job, progress=55, message="Calling multimodal LLM")
     client = DoubaoClient()
+    prompts = get_analyzer_prompts(payload.get("locale"))
     description = asyncio.run(
         client.chat_with_image(
-            system_prompt=ANALYZER_SYSTEM,
-            user_message=ANALYZER_USER.format(
+            system_prompt=prompts.system,
+            user_message=prompts.user.format(
                 segment_script=seg.segment_script,
                 time_range=f"{start}s-{end}s",
             ),
@@ -334,7 +334,7 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     seg.updated_at = now_utc()
     session.add(seg)
 
-    summary = f"片段{idx}({start}s-{end}s): {description}"
+    summary = format_canon_summary(idx, start, end, description)
     project.canon_summaries = append_canon(project.canon_summaries or "", summary)
     project.last_frame_path = seg.last_frame_path
     project.current_segment_index = idx + 1
@@ -430,4 +430,3 @@ def _loop() -> None:
         except Exception:
             # Avoid worker death; sleep briefly and retry.
             time.sleep(0.5)
-

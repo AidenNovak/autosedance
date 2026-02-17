@@ -117,6 +117,7 @@ class CreateJobIn(BaseModel):
     type: JobType
     index: Optional[int] = None
     feedback: Optional[str] = None
+    locale: Optional[str] = None
 
 
 class JobOut(BaseModel):

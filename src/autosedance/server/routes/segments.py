@@ -11,7 +11,8 @@ from sqlmodel import Session, select
 
 from ...clients.doubao import DoubaoClient
 from ...nodes.segmenter import segmenter_node
-from ...prompts.analyzer import ANALYZER_SYSTEM, ANALYZER_USER
+from ...prompts.loader import get_analyzer_prompts
+from ...utils.canon import format_canon_summary
 from ...utils.video import extract_last_frame
 from ..db import get_session
 from ..models import Project, Segment
@@ -88,14 +89,12 @@ def generate_segment(
     project.last_frame_path = _latest_frame_before(session, project_id, index)
     project.final_video_path = None
 
-    full_script = project.full_script or ""
-    if payload.feedback:
-        full_script = f"{full_script}\n\n## 用户反馈/补充要求（针对本片段生成）\n{payload.feedback.strip()}"
-
     state = {
-        "full_script": full_script,
+        "locale": None,
+        "full_script": project.full_script or "",
         "canon_summaries": project.canon_summaries or "",
         "current_segment_index": index,
+        "feedback": payload.feedback.strip() if payload.feedback else "",
         "segment_duration": project.segment_duration,
         "total_duration_seconds": project.total_duration_seconds,
     }
@@ -357,10 +356,11 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
     # Multimodal analysis
     client = DoubaoClient()
     try:
+        prompts = get_analyzer_prompts(None)
         description = asyncio.run(
             client.chat_with_image(
-                system_prompt=ANALYZER_SYSTEM,
-                user_message=ANALYZER_USER.format(
+                system_prompt=prompts.system,
+                user_message=prompts.user.format(
                     segment_script=seg.segment_script,
                     time_range=f"{start}s-{end}s",
                 ),
@@ -380,7 +380,7 @@ def analyze_segment(project_id: str, index: int, session: Session = Depends(get_
     seg.updated_at = now_utc()
     session.add(seg)
 
-    summary = f"片段{index}({start}s-{end}s): {description}"
+    summary = format_canon_summary(index, start, end, description)
     project.canon_summaries = append_canon(project.canon_summaries or "", summary)
     project.last_frame_path = seg.last_frame_path
     project.current_segment_index = index + 1

@@ -15,6 +15,7 @@ import {
   updateSegment,
   uploadVideo
 } from "@/lib/api";
+import { useI18n } from "@/components/I18nProvider";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -52,6 +53,7 @@ function statusDotClass(status: string) {
 }
 
 export default function ProjectPage() {
+  const { t, locale } = useI18n();
   const params = useParams<{ id: string }>();
   const projectId = params.id;
 
@@ -118,7 +120,7 @@ export default function ProjectPage() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed");
+      setError(e instanceof Error ? e.message : t("common.request_failed"));
     } finally {
       setBusy(null);
     }
@@ -141,7 +143,7 @@ export default function ProjectPage() {
     afterSuccess?: (finalJob: Job) => Promise<void>
   ) {
     await run(label, async () => {
-      const job = await createJob(projectId, input);
+      const job = await createJob(projectId, { ...input, locale });
       setActiveJob(job);
 
       const finalJob = await waitForJob(job.id);
@@ -168,7 +170,7 @@ export default function ProjectPage() {
         setSelectedIndex(idx);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load project");
+        setError(e instanceof Error ? e.message : t("project.failed_load_project"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -190,7 +192,7 @@ export default function ProjectPage() {
         await refreshSegment(selectedIndex);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load segment");
+        setError(e instanceof Error ? e.message : t("project.failed_load_segment"));
       }
     })();
     return () => {
@@ -248,7 +250,7 @@ export default function ProjectPage() {
     return (
       <div className="card">
         <div className="bd">
-          <div className="muted">Loading…</div>
+          <div className="muted">{t("common.loading")}</div>
         </div>
       </div>
     );
@@ -261,7 +263,7 @@ export default function ProjectPage() {
           <div style={{ color: "var(--danger)" }}>{error}</div>
           <div style={{ height: 10 }} />
           <Link className="btn" href="/">
-            Back
+            {t("common.back")}
           </Link>
         </div>
       </div>
@@ -270,11 +272,35 @@ export default function ProjectPage() {
 
   if (!project) return null;
 
+  function trStatus(status: string): string {
+    const key = `status.${status}`;
+    const out = t(key);
+    return out === key ? status : out;
+  }
+
+  function trNext(action: string): string {
+    const key = `next.${action}`;
+    const out = t(key);
+    return out === key ? action : out;
+  }
+
+  function trJobType(type: string): string {
+    const key = `job.${type}`;
+    const out = t(key);
+    return out === key ? type : out;
+  }
+
+  function trJobStatus(status: string): string {
+    const key = `job_status.${status}`;
+    const out = t(key);
+    return out === key ? status : out;
+  }
+
   return (
     <div className="split">
       <div className="card sidebar">
         <div className="hd">
-          <h2>Segments</h2>
+          <h2>{t("project.segments.title")}</h2>
           <span className="pill">
             {completedCount}/{project.num_segments}
           </span>
@@ -282,9 +308,14 @@ export default function ProjectPage() {
         <div className="bd" style={{ display: "grid", gap: 12 }}>
             <div style={{ display: "grid", gap: 10 }}>
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="pill">{project.next_action}</span>
+                <span className="pill">{trNext(project.next_action)}</span>
                 <span className="pill">
-                  current: {project.current_segment_index >= project.num_segments ? "done" : project.current_segment_index + 1}
+                  {t("project.current", {
+                    current:
+                      project.current_segment_index >= project.num_segments
+                        ? t("common.done")
+                        : String(project.current_segment_index + 1)
+                  })}
                 </span>
               </div>
               <div className="row">
@@ -297,14 +328,14 @@ export default function ProjectPage() {
                 }
                 disabled={locked}
               >
-                Refresh
+                {t("common.refresh")}
               </button>
               <button
                 className="btn"
                 onClick={() => setSelectedIndex(clamp(project.current_segment_index || 0, 0, project.num_segments - 1))}
                 disabled={locked}
               >
-                Go Current
+                {t("project.go_current")}
               </button>
             </div>
           </div>
@@ -319,17 +350,19 @@ export default function ProjectPage() {
                     className={`segitem${active ? " active" : ""}`}
                     onClick={() => setSelectedIndex(s.index)}
                     disabled={locked}
-                    title={`segment ${s.index + 1} · ${s.status}`}
+                    title={t("project.segment.tooltip", { n: s.index + 1, status: trStatus(s.status) })}
                   >
                     <span className={statusDotClass(s.status)} />
                     <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0, textAlign: "left" }}>
                       <div className="segtitle">
                         #{pad3Display(s.index)}{" "}
-                        {s.index === project.current_segment_index ? <span className="pill tiny">current</span> : null}
+                        {s.index === project.current_segment_index ? (
+                          <span className="pill tiny">{t("project.current_badge")}</span>
+                        ) : null}
                       </div>
                       <div className="segmeta">
                         {s.has_video ? "V" : "·"} {s.has_frame ? "F" : "·"} {s.has_description ? "D" : "·"} ·{" "}
-                        {s.status}
+                        {trStatus(s.status)}
                       </div>
                     </div>
                   </button>
@@ -343,28 +376,28 @@ export default function ProjectPage() {
       <div style={{ display: "grid", gap: 14 }}>
         <div className="card">
           <div className="hd">
-            <h2>Project</h2>
+            <h2>{t("project.project.title")}</h2>
             <span className="pill">{project.id}</span>
           </div>
           <div className="bd">
             <div className="kvs">
               <div className="kv">
-                <div className="k">Duration</div>
+                <div className="k">{t("project.project.duration")}</div>
                 <div className="v">{project.total_duration_seconds}s</div>
               </div>
               <div className="kv">
-                <div className="k">Pacing</div>
+                <div className="k">{t("project.project.pacing")}</div>
                 <div className="v">{project.pacing}</div>
               </div>
               <div className="kv">
-                <div className="k">Segments</div>
+                <div className="k">{t("project.project.segments")}</div>
                 <div className="v">
                   {completedCount}/{project.num_segments}
                 </div>
               </div>
             </div>
             <div style={{ marginTop: 12 }} className="muted">
-              Prompt: {project.user_prompt}
+              {t("project.project.prompt", { prompt: project.user_prompt })}
             </div>
             {error ? (
               <div style={{ marginTop: 12, color: "var(--danger)" }}>{error}</div>
@@ -375,9 +408,9 @@ export default function ProjectPage() {
         {activeJob ? (
           <div className="card">
             <div className="hd">
-              <h2>Job</h2>
+              <h2>{t("project.job.title")}</h2>
               <span className="pill">
-                {activeJob.type} · {activeJob.status}
+                {trJobType(activeJob.type)} · {trJobStatus(activeJob.status)}
               </span>
             </div>
             <div className="bd" style={{ display: "grid", gap: 10 }}>
@@ -395,7 +428,7 @@ export default function ProjectPage() {
         <div className="grid two">
           <div className="card">
             <div className="hd">
-              <h2>in0 Full Script</h2>
+              <h2>{t("project.in0.title")}</h2>
               <div className="row">
                 <button
                   className="btn primary"
@@ -414,7 +447,11 @@ export default function ProjectPage() {
                   }
                   disabled={locked}
                 >
-                  {jobRunning && activeJob?.type === "full_script" ? "Generating…" : project.full_script ? "Regenerate" : "Generate"}
+                  {jobRunning && activeJob?.type === "full_script"
+                    ? t("common.generating")
+                    : project.full_script
+                      ? t("common.regenerate")
+                      : t("common.generate")}
                 </button>
                 <button
                   className="btn"
@@ -430,18 +467,18 @@ export default function ProjectPage() {
                   }
                   disabled={locked}
                 >
-                  {busy === "save_full" ? "Saving…" : "Save"}
+                  {busy === "save_full" ? t("common.saving") : t("common.save")}
                 </button>
               </div>
             </div>
             <div className="bd" style={{ display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Feedback (optional)</div>
+                <div className="muted">{t("project.feedback.optional")}</div>
                 <input
                   className="input"
                   value={fullFeedback}
                   onChange={(e) => setFullFeedback(e.target.value)}
-                  placeholder="e.g. add a twist, make it slower, change character…"
+                  placeholder={t("project.feedback.full_placeholder")}
                   disabled={locked}
                 />
               </div>
@@ -449,7 +486,7 @@ export default function ProjectPage() {
                 className="textarea"
                 value={fullDraft}
                 onChange={(e) => setFullDraft(e.target.value)}
-                placeholder="Generate in0 first, or paste your own."
+                placeholder={t("project.full.placeholder")}
                 disabled={locked}
               />
             </div>
@@ -457,12 +494,12 @@ export default function ProjectPage() {
 
           <div className="card">
             <div className="hd">
-              <h2>Continuity Context</h2>
-              <span className="pill">last 3 summaries</span>
+              <h2>{t("project.continuity.title")}</h2>
+              <span className="pill">{t("project.continuity.last3")}</span>
             </div>
             <div className="bd">
               <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--muted)", fontSize: 12, lineHeight: 1.55 }}>
-                {project.canon_summaries || "No canon summaries yet."}
+                {project.canon_summaries || t("project.continuity.empty")}
               </pre>
             </div>
           </div>
@@ -472,10 +509,12 @@ export default function ProjectPage() {
           <div className="card">
             <div className="hd">
               <h2>
-                Segment #{pad3Display(selectedIndex)}{" "}
+                {t("project.segment.title", { n: pad3Display(selectedIndex) })}{" "}
                 {timeRange ? <span className="pill tiny">{timeRange}</span> : null}
               </h2>
-              <span className="pill">{(segment?.status || selectedSummary?.status || "pending") as any}</span>
+              <span className="pill">
+                {trStatus((segment?.status || selectedSummary?.status || "pending") as any)}
+              </span>
             </div>
             <div className="bd" style={{ display: "grid", gap: 12 }}>
               <div className="row" style={{ justifyContent: "space-between" }}>
@@ -485,14 +524,14 @@ export default function ProjectPage() {
                     onClick={() => setSelectedIndex((i) => clamp(i - 1, 0, project.num_segments - 1))}
                     disabled={locked || selectedIndex <= 0}
                   >
-                    Prev
+                    {t("project.segment.prev")}
                   </button>
                   <button
                     className="btn"
                     onClick={() => setSelectedIndex((i) => clamp(i + 1, 0, project.num_segments - 1))}
                     disabled={locked || selectedIndex >= project.num_segments - 1}
                   >
-                    Next
+                    {t("project.segment.next")}
                   </button>
                 </div>
 
@@ -511,9 +550,9 @@ export default function ProjectPage() {
                       )
                     }
                     disabled={locked || !project.full_script}
-                    title={!project.full_script ? "Generate in0 first" : ""}
+                    title={!project.full_script ? t("project.in0.generate_first_title") : ""}
                   >
-                    {jobRunning && activeJob?.type === "segment_generate" ? "Generating…" : "Generate Segment"}
+                    {jobRunning && activeJob?.type === "segment_generate" ? t("common.generating") : t("project.segment.generate")}
                   </button>
                   <button
                     className="btn"
@@ -530,24 +569,24 @@ export default function ProjectPage() {
                     }
                     disabled={locked}
                   >
-                    {busy === "seg_save" ? "Saving…" : "Save Segment"}
+                    {busy === "seg_save" ? t("common.saving") : t("project.segment.save")}
                   </button>
                 </div>
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Feedback (optional)</div>
+                <div className="muted">{t("project.feedback.optional")}</div>
                 <input
                   className="input"
                   value={segFeedback}
                   onChange={(e) => setSegFeedback(e.target.value)}
-                  placeholder="e.g. make prompt more cinematic, match last frame…"
+                  placeholder={t("project.feedback.segment_placeholder")}
                   disabled={locked}
                 />
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Segment Script</div>
+                <div className="muted">{t("project.segment.script_label")}</div>
                 <textarea
                   className="textarea"
                   value={segScriptDraft}
@@ -557,7 +596,7 @@ export default function ProjectPage() {
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">Video Prompt</div>
+                <div className="muted">{t("project.segment.prompt_label")}</div>
                 <textarea
                   className="textarea"
                   value={segPromptDraft}
@@ -570,18 +609,18 @@ export default function ProjectPage() {
 
           <div className="card">
             <div className="hd">
-              <h2>Upload + Frame + Analyze</h2>
-              <span className="pill">mp4 upload</span>
+              <h2>{t("project.upload.title")}</h2>
+              <span className="pill">{t("project.upload.mode")}</span>
             </div>
               <div className="bd" style={{ display: "grid", gap: 12 }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
-                <div className="muted">Upload video for Segment #{pad3Display(selectedIndex)}</div>
+                <div className="muted">{t("project.upload.for_segment", { n: pad3Display(selectedIndex) })}</div>
                 <label
                   className="btn"
                   style={!canUpload || locked ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-                  title={!canUpload ? "Generate segment first" : undefined}
+                  title={!canUpload ? t("project.upload.generate_first_title") : undefined}
                 >
-                  {busy === "upload" ? "Uploading…" : "Choose File"}
+                  {busy === "upload" ? t("project.upload.uploading") : t("project.upload.choose_file")}
                   <input
                     type="file"
                     accept="video/*"
@@ -605,11 +644,11 @@ export default function ProjectPage() {
 
               {!loadingSegment && !canUpload ? (
                 <div style={{ color: "var(--accent)", fontSize: 13, lineHeight: 1.5 }}>
-                  请先 Generate Segment（生成脚本/Prompt）后再上传。
+                  {t("project.upload.generate_first_hint")}
                 </div>
               ) : null}
 
-              {videoSrc ? <video className="video" controls src={videoSrc} /> : <div className="muted">No uploaded video yet.</div>}
+              {videoSrc ? <video className="video" controls src={videoSrc} /> : <div className="muted">{t("project.upload.no_video")}</div>}
 
               {uploadWarnings.length > 0 ? (
                 <div style={{ color: "var(--danger)", fontSize: 13, lineHeight: 1.5 }}>
@@ -634,7 +673,9 @@ export default function ProjectPage() {
                   }
                   disabled={locked || !segment?.video_url}
                 >
-                  {jobRunning && activeJob?.type === "extract_frame" ? "Extracting…" : "Retry Extract Frame"}
+                  {jobRunning && activeJob?.type === "extract_frame"
+                    ? t("project.frame.extracting")
+                    : t("project.frame.retry_extract")}
                 </button>
 
                 <button
@@ -651,7 +692,7 @@ export default function ProjectPage() {
                   }}
                   disabled={locked || !segment?.frame_url}
                 >
-                  Save Frame
+                  {t("project.frame.save")}
                 </button>
               </div>
 
@@ -675,17 +716,17 @@ export default function ProjectPage() {
                 }
                 disabled={locked || !segment?.video_url}
               >
-                {jobRunning && activeJob?.type === "analyze" ? "Analyzing…" : "Analyze (inNB)"}
+                {jobRunning && activeJob?.type === "analyze" ? t("project.analyzing") : t("project.analyze")}
               </button>
 
-              {frameSrc ? <img className="img" src={frameSrc} alt="last frame" /> : null}
+              {frameSrc ? <img className="img" src={frameSrc} alt={t("project.frame.alt")} /> : null}
 
               {segment?.video_description ? (
                 <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--text)", fontSize: 12, lineHeight: 1.55 }}>
                   {segment.video_description}
                 </pre>
               ) : (
-                <div className="muted">No analysis yet.</div>
+                <div className="muted">{t("project.analysis.none")}</div>
               )}
             </div>
           </div>
@@ -693,8 +734,8 @@ export default function ProjectPage() {
 
         <div className="card">
           <div className="hd">
-            <h2>Assemble</h2>
-            <span className="pill">{allVideosPresent ? "ready" : "needs videos"}</span>
+            <h2>{t("project.assemble.title")}</h2>
+            <span className="pill">{allVideosPresent ? t("project.assemble.ready") : t("project.assemble.needs_videos")}</span>
           </div>
           <div className="bd" style={{ display: "grid", gap: 12 }}>
             <div className="row">
@@ -707,7 +748,9 @@ export default function ProjectPage() {
                 }
                 disabled={locked || !allVideosPresent}
               >
-                {jobRunning && activeJob?.type === "assemble" ? "Assembling…" : "Assemble Final Video"}
+                {jobRunning && activeJob?.type === "assemble"
+                  ? t("project.assemble.assembling")
+                  : t("project.assemble.button")}
               </button>
               <button
                 className="btn"
@@ -719,10 +762,10 @@ export default function ProjectPage() {
                 }
                 disabled={locked}
               >
-                Refresh
+                {t("common.refresh")}
               </button>
             </div>
-            {finalSrc ? <video className="video" controls src={finalSrc} /> : <div className="muted">No final video yet.</div>}
+            {finalSrc ? <video className="video" controls src={finalSrc} /> : <div className="muted">{t("project.final.none")}</div>}
           </div>
         </div>
       </div>

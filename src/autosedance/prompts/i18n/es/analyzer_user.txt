@@ -1,0 +1,13 @@
+Por favor analiza esta captura del video (es el último fotograma del video subido).
+
+## Contenido esperado (guion)
+{segment_script}
+
+## Rango de tiempo
+{time_range}
+
+## Tareas
+1. Describe lo que realmente aparece en el fotograma y compáralo con lo esperado.
+2. Enfócate en el estado del fotograma final para que el siguiente segmento continúe sin cortes.
+3. Señala los elementos de continuidad que deben mantenerse consistentes.
+

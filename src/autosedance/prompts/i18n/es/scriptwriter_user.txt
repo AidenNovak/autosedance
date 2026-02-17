@@ -1,0 +1,15 @@
+Solicitud del usuario:
+{user_prompt}
+
+Preferencia de ritmo (opcional):
+{pacing}
+
+Comentarios / requisitos adicionales (opcional):
+{feedback}
+
+Por favor escribe un guion estilo storyboard, con visuales ricos.
+Recuerda:
+1. Cada segmento debe incluir descripciones concretas de planos.
+2. Cada segmento debe terminar con un ancla clara del último fotograma para continuidad.
+3. Mantén las descripciones específicas y accionables para la generación de video.
+

@@ -3,11 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { useI18n } from "@/components/I18nProvider";
 import { createProject } from "@/lib/api";
 
 const DURATIONS = [30, 45, 60, 75, 90, 120, 180];
 
 export default function NewProjectPage() {
+  const { t } = useI18n();
   const router = useRouter();
 
   const [duration, setDuration] = useState<number>(60);
@@ -18,8 +20,8 @@ export default function NewProjectPage() {
 
   const durationHint = useMemo(() => {
     if (duration % 15 === 0) return "ok";
-    return `Will be split into 15s chunks; last chunk will be shorter (${duration % 15}s remainder).`;
-  }, [duration]);
+    return t("new.split_hint", { remainder: duration % 15 });
+  }, [duration, t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +35,7 @@ export default function NewProjectPage() {
       });
       router.push(`/projects/${proj.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create project");
+      setError(err instanceof Error ? err.message : t("new.failed_create"));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export default function NewProjectPage() {
     <div className="grid two">
       <div className="card">
         <div className="hd">
-          <h2>New Project</h2>
-          <span className="pill">manual upload mode</span>
+          <h2>{t("new.title")}</h2>
+          <span className="pill">{t("new.mode")}</span>
         </div>
         <div className="bd">
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
             <div style={{ display: "grid", gap: 6 }}>
-              <div className="muted">Total Duration (seconds)</div>
+              <div className="muted">{t("new.total_duration")}</div>
               <div className="row">
                 <select
                   className="select"
@@ -72,27 +74,31 @@ export default function NewProjectPage() {
                   onChange={(e) => setDuration(parseInt(e.target.value || "0", 10))}
                   style={{ maxWidth: 180 }}
                 />
-                <span className="pill">segment=15s</span>
+                <span className="pill">{t("new.segment_label")}</span>
               </div>
               <div className="muted" style={{ fontSize: 13 }}>
-                {durationHint === "ok" ? <span style={{ color: "var(--ok)" }}>multiple of 15</span> : durationHint}
+                {durationHint === "ok" ? (
+                  <span style={{ color: "var(--ok)" }}>{t("new.multiple_of_15")}</span>
+                ) : (
+                  durationHint
+                )}
               </div>
             </div>
 
             <div style={{ display: "grid", gap: 6 }}>
-              <div className="muted">Pacing</div>
+              <div className="muted">{t("new.pacing")}</div>
               <select className="select" value={pacing} onChange={(e) => setPacing(e.target.value as any)}>
-                <option value="normal">normal</option>
-                <option value="slow">slow</option>
-                <option value="urgent">urgent</option>
+                <option value="normal">{t("pacing.normal")}</option>
+                <option value="slow">{t("pacing.slow")}</option>
+                <option value="urgent">{t("pacing.urgent")}</option>
               </select>
             </div>
 
             <div style={{ display: "grid", gap: 6 }}>
-              <div className="muted">Prompt</div>
+              <div className="muted">{t("new.prompt")}</div>
               <textarea
                 className="textarea"
-                placeholder="Describe your story, style, characters, constraints…"
+                placeholder={t("new.prompt_placeholder")}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 required
@@ -103,7 +109,7 @@ export default function NewProjectPage() {
 
             <div className="row" style={{ justifyContent: "flex-end" }}>
               <button className="btn primary" type="submit" disabled={loading}>
-                {loading ? "Creating…" : "Create"}
+                {loading ? t("common.creating") : t("common.create")}
               </button>
             </div>
           </form>
@@ -112,19 +118,18 @@ export default function NewProjectPage() {
 
       <div className="card">
         <div className="hd">
-          <h2>What You Get</h2>
+          <h2>{t("new.what_you_get.title")}</h2>
         </div>
         <div className="bd">
           <div className="muted" style={{ lineHeight: 1.7 }}>
-            <div>1. in0: minute-level full script</div>
-            <div>2. inN: 15s segment script + video prompt</div>
-            <div>3. Upload: you provide the actual video file</div>
-            <div>4. inNB: model describes last frame + continuity notes</div>
-            <div>5. Assemble: ffmpeg concat into a final mp4</div>
+            <div>{t("new.what_you_get.line1")}</div>
+            <div>{t("new.what_you_get.line2")}</div>
+            <div>{t("new.what_you_get.line3")}</div>
+            <div>{t("new.what_you_get.line4")}</div>
+            <div>{t("new.what_you_get.line5")}</div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

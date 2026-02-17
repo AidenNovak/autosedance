@@ -1,0 +1,15 @@
+User request:
+{user_prompt}
+
+Pacing preference (optional):
+{pacing}
+
+User feedback / extra requirements (optional):
+{feedback}
+
+Please write a complete storyboard-style script with rich visuals.
+Remember:
+1. Each segment must include concrete shot descriptions.
+2. Each segment must end with a clear last-frame anchor for continuity.
+3. Keep descriptions specific and actionable for later video generation.
+

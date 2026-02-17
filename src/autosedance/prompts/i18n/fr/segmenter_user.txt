@@ -1,0 +1,20 @@
+## Script maître
+{full_script}
+
+## Résumés de continuité (fins des segments précédents ; peut être vide)
+{canon_summaries}
+
+## Temps actuel
+{current_time}s
+
+## Retours optionnels
+{feedback}
+
+## Important
+1. Si c’est le premier segment, crée une image d’ouverture forte basée sur le script.
+2. S’il y a des résumés de continuité, tu dois continuer la dernière image et l’état des personnages.
+3. Garde le prompt concret, visuel, et orienté caméra ; évite l’abstrait.
+4. Rends l’image de fin explicite pour que le segment suivant s’enchaîne sans coupe.
+
+Merci de générer le JSON pour ce segment.
+
