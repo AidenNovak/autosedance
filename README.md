@@ -66,6 +66,8 @@ VIDEO_MODEL=wan  # 可选: wan 或 seedance
 
 ```bash
 autosedance server --reload
+# 或（未安装 entrypoint 时）
+python3 -m autosedance.main server --reload
 ```
 
 2) 启动前端：
@@ -90,6 +92,10 @@ autosedance -p "森林中的小鹿在晨光中醒来" -d 60 -m seedance
 # 生成30秒视频
 autosedance -p "小猫在花园里玩耍" -d 30 -m wan
 ```
+
+### Archive / Legacy
+
+一些历史脚本与说明文档已归档到 `archive/`，不影响 Web UI 使用。
 
 ## 工作流程
 

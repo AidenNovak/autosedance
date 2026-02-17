@@ -6,7 +6,6 @@ from typing import Optional
 import click
 
 from .config import get_settings
-from .graph.workflow import build_workflow
 from .state.schema import GraphState
 
 
@@ -75,6 +74,9 @@ def main(ctx: click.Context, prompt: Optional[str], duration: int, model: Option
     }
 
     # 构建工作流
+    # Import lazily so `autosedance server` doesn't pull in LangGraph dependencies.
+    from .graph.workflow import build_workflow
+
     workflow = build_workflow()
 
     # 运行工作流
