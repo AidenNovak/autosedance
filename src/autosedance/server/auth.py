@@ -25,7 +25,7 @@ def _secret_bytes() -> bytes:
     """Return stable secret bytes for hashing.
 
     In production you must set AUTH_SECRET_KEY; in dev we fall back to a
-    process-local ephemeral secret (sessions/OTPs won't survive restarts).
+    process-local ephemeral secret (sessions won't survive restarts).
     """
 
     settings = get_settings()
@@ -41,10 +41,6 @@ def _secret_bytes() -> bytes:
 
 def _hmac_sha256_hex(value: str) -> str:
     return hmac.new(_secret_bytes(), value.encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def hash_otp(email: str, code: str) -> str:
-    return _hmac_sha256_hex(f"otp:{email}:{code}")
 
 
 def new_session_token() -> str:

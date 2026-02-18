@@ -1,7 +1,7 @@
 [project]
 name = "autosedance"
 version = "0.1.0"
-description = "AI Video Generation Agent System"
+description = "Interactive AI video workflow (manual upload)"
 requires-python = ">=3.9"
 
 dependencies = [

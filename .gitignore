@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 .venv
 __pycache__/
 *.pyc
@@ -20,6 +22,7 @@ node_modules/
 .next/
 apps/web/node_modules/
 apps/web/.next/
+.vercel/
 
 # Local ops artifacts / backups (not meant for git)
 server_backups/
