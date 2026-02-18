@@ -13,7 +13,12 @@ function setLangCookie(locale: Locale) {
   document.cookie = `autos_lang=${encodeURIComponent(locale)}; path=/; max-age=${maxAge}; samesite=lax`;
 }
 
-export function LanguageSwitcher(props?: { minWidth?: number; reload?: boolean; ariaLabel?: string }) {
+export function LanguageSwitcher(props?: {
+  minWidth?: number;
+  reload?: boolean;
+  ariaLabel?: string;
+  beforeReload?: () => void;
+}) {
   const { locale, setLocale, t } = useI18n();
   const minWidth = props?.minWidth ?? 160;
   const reload = props?.reload ?? true;
@@ -36,6 +41,9 @@ export function LanguageSwitcher(props?: { minWidth?: number; reload?: boolean; 
         setLangCookie(next);
         if (reload) {
           // RootLayout is a Server Component; reload to apply <html lang/dir> and server-rendered strings.
+          try {
+            props?.beforeReload?.();
+          } catch {}
           window.location.reload();
         }
       }}

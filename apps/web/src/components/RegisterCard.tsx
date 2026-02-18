@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
 import { useI18n } from "@/components/I18nProvider";
@@ -18,6 +18,69 @@ const REFERRAL_OPTIONS = [
   { value: "friend", key: "reg.referral.friend" },
   { value: "other", key: "reg.referral.other" }
 ] as const;
+
+const REGISTER_DRAFT_KEY = "autos_register_draft_v1";
+const REGISTER_DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
+const ALLOWED_REFERRALS = new Set<string>(REFERRAL_OPTIONS.map((o) => o.value));
+
+type RegisterDraftSnapshot = {
+  mode: "register" | "login";
+  invite: string;
+  email: string;
+  username: string;
+  country: string;
+  referral: (typeof REFERRAL_OPTIONS)[number]["value"];
+  opinion: string;
+};
+
+type RegisterDraftV1 = RegisterDraftSnapshot & { v: 1; updatedAt: number };
+
+function isRecord(v: unknown): v is Record<string, any> {
+  return typeof v === "object" && v !== null;
+}
+
+function clearRegisterDraft() {
+  try {
+    localStorage.removeItem(REGISTER_DRAFT_KEY);
+  } catch {}
+}
+
+function readRegisterDraft(now = Date.now()): RegisterDraftSnapshot | null {
+  try {
+    const raw = localStorage.getItem(REGISTER_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!isRecord(parsed) || parsed.v !== 1) return null;
+    const updatedAt = typeof parsed.updatedAt === "number" ? parsed.updatedAt : 0;
+    if (!updatedAt || now - updatedAt > REGISTER_DRAFT_TTL_MS) {
+      clearRegisterDraft();
+      return null;
+    }
+
+    const mode = parsed.mode === "login" ? "login" : "register";
+    const referralRaw = typeof parsed.referral === "string" ? parsed.referral : "";
+    const referral = (ALLOWED_REFERRALS.has(referralRaw) ? referralRaw : "x") as RegisterDraftSnapshot["referral"];
+
+    return {
+      mode,
+      invite: typeof parsed.invite === "string" ? parsed.invite : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+      username: typeof parsed.username === "string" ? parsed.username : "",
+      country: typeof parsed.country === "string" ? parsed.country : "",
+      referral,
+      opinion: typeof parsed.opinion === "string" ? parsed.opinion : ""
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeRegisterDraft(snapshot: RegisterDraftSnapshot, now = Date.now()) {
+  try {
+    const draft: RegisterDraftV1 = { ...snapshot, v: 1, updatedAt: now };
+    localStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify(draft));
+  } catch {}
+}
 
 function trAuthError(t: (k: string, p?: any) => string, raw: string): string {
   switch (raw) {
@@ -115,6 +178,42 @@ export function RegisterCard() {
   const [invites, setInvites] = useState<string[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
+  const draftRef = useRef<RegisterDraftSnapshot | null>(null);
+  draftRef.current = { mode, invite, email, username, country, referral, opinion };
+
+  useEffect(() => {
+    const draft = readRegisterDraft();
+    if (!draft) return;
+    setMode(draft.mode);
+    setInvite(draft.invite);
+    setEmail(draft.email);
+    setUsername(draft.username);
+    setCountry(draft.country);
+    setReferral(draft.referral);
+    setOpinion(draft.opinion);
+  }, []);
+
+  // Best-effort draft persistence so language switching (which triggers a reload)
+  // doesn't lose the form inputs.
+  useEffect(() => {
+    const onHide = () => {
+      const snap = draftRef.current;
+      if (!snap) return;
+      const hasAny = [snap.invite, snap.email, snap.username, snap.country, snap.opinion].some((s) => (s || "").trim());
+      if (!hasAny) {
+        clearRegisterDraft();
+        return;
+      }
+      writeRegisterDraft(snap);
+    };
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", onHide);
+    };
+  }, []);
+
   const referralOptions = useMemo(() => {
     return REFERRAL_OPTIONS.map((o) => ({ ...o, label: t(o.key) }));
   }, [t]);
@@ -128,7 +227,15 @@ export function RegisterCard() {
         <div className="hd" style={{ alignItems: "center" }}>
           <h2>{mode === "register" ? t("reg.title") : t("login.title")}</h2>
           <div style={{ marginLeft: "auto" }}>
-            <LanguageSwitcher reload={false} minWidth={140} />
+            <LanguageSwitcher
+              reload
+              minWidth={140}
+              beforeReload={() => {
+                const snap = draftRef.current;
+                if (!snap) return;
+                writeRegisterDraft(snap);
+              }}
+            />
           </div>
         </div>
 
@@ -216,6 +323,7 @@ export function RegisterCard() {
                   });
                   setInvites((out.invites || []).filter((x): x is string => typeof x === "string" && x.length > 0));
                   setPassword("");
+                  clearRegisterDraft();
                 } catch (e2) {
                   setErr(e2 instanceof Error ? e2.message : "INTERNAL_ERROR");
                 } finally {
@@ -343,6 +451,7 @@ export function RegisterCard() {
                 setErr(null);
                 try {
                   await login({ username: username.trim(), password });
+                  clearRegisterDraft();
                 } catch (e2) {
                   setErr(e2 instanceof Error ? e2.message : "INTERNAL_ERROR");
                 } finally {
@@ -390,4 +499,3 @@ export function RegisterCard() {
     </div>
   );
 }
-

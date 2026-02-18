@@ -52,9 +52,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link className="btn" href="/invites">
                       {translate(messages, "topbar.invites")}
                     </Link>
-                    <Link className="btn" href="/i18n">
-                      {translate(messages, "topbar.translations")}
-                    </Link>
                     <Link className="btn primary" href="/new">
                       {translate(messages, "topbar.new_project")}
                     </Link>
