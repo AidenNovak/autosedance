@@ -2,6 +2,22 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def _get_any_unredeemed_invite_code() -> str:
+    # Import lazily so env vars from fixtures are applied before Settings is loaded.
+    from sqlmodel import Session, select
+
+    from autosedance.server.db import get_engine
+    from autosedance.server.models import InviteCode
+
+    engine = get_engine()
+    with Session(engine) as session:
+        rec = session.exec(
+            select(InviteCode).where(InviteCode.redeemed_at.is_(None), InviteCode.disabled_at.is_(None)).limit(1)
+        ).first()
+        assert rec is not None, "expected invite seeding to create at least 1 invite code"
+        return rec.code
+
+
 @pytest.fixture()
 def client_auth(tmp_path, monkeypatch):
     out_dir = tmp_path / "out"
@@ -24,23 +40,10 @@ def client_auth(tmp_path, monkeypatch):
 
     reset_engine_for_tests()
 
-    # Patch email sending for OTP
-    import autosedance.server.routes.auth as auth_routes
-
-    sent = {}
-
-    def fake_send_otp_email(to_email: str, code: str, *, ttl_minutes: int) -> None:
-        sent["to"] = to_email
-        sent["code"] = code
-        sent["ttl"] = ttl_minutes
-
-    monkeypatch.setattr(auth_routes, "send_otp_email", fake_send_otp_email)
-
     from autosedance.server.app import create_app
 
     app = create_app()
     with TestClient(app) as c:
-        c._sent = sent  # type: ignore[attr-defined]
         yield c
 
 
@@ -57,8 +60,7 @@ def client_auth_rl(tmp_path, monkeypatch):
     monkeypatch.setenv("AUTH_REQUIRE_FOR_READS", "1")
     monkeypatch.setenv("AUTH_REQUIRE_FOR_WRITES", "1")
     monkeypatch.setenv("AUTH_SECRET_KEY", "test-secret")
-    monkeypatch.setenv("AUTH_OTP_MIN_INTERVAL_SECONDS", "0")
-    monkeypatch.setenv("AUTH_RL_REQUEST_CODE_PER_EMAIL_PER_HOUR", "1")
+    monkeypatch.setenv("AUTH_RL_REGISTER_PER_EMAIL_PER_HOUR", "1")
 
     from autosedance.config.settings import get_settings
 
@@ -68,13 +70,6 @@ def client_auth_rl(tmp_path, monkeypatch):
 
     reset_engine_for_tests()
 
-    import autosedance.server.routes.auth as auth_routes
-
-    def fake_send_otp_email(to_email: str, code: str, *, ttl_minutes: int) -> None:
-        return None
-
-    monkeypatch.setattr(auth_routes, "send_otp_email", fake_send_otp_email)
-
     from autosedance.server.app import create_app
 
     app = create_app()
@@ -82,27 +77,34 @@ def client_auth_rl(tmp_path, monkeypatch):
         yield c
 
 
-def test_auth_otp_flow_and_project_gating(client_auth):
+def test_auth_register_flow_and_project_gating(client_auth):
     email = "test@example.com"
+    password = "test-password-123"
+    invite = _get_any_unredeemed_invite_code()
 
     # Not logged in: projects are gated
     r = client_auth.get("/api/projects")
     assert r.status_code == 401, r.text
 
-    # Request code
-    r = client_auth.post("/api/auth/request_code", json={"email": email})
-    assert r.status_code == 200, r.text
-    sent = client_auth._sent  # type: ignore[attr-defined]
-    assert sent.get("to") == email
-    code = sent.get("code")
-    assert code and len(code) == 6
-
-    # Verify code (sets cookie)
-    r = client_auth.post("/api/auth/verify_code", json={"email": email, "code": code})
+    # Register (sets cookie)
+    r = client_auth.post(
+        "/api/auth/register",
+        json={
+            "invite_code": invite,
+            "email": email,
+            "password": password,
+            "country": "US",
+            "referral": "x",
+            "opinion": "hello",
+        },
+    )
     assert r.status_code == 200, r.text
     me = r.json()
     assert me["authenticated"] is True
+    assert me["user_id"]
+    assert me["username"]
     assert me["email"] == email
+    assert len(me.get("invites", [])) == 5
 
     # Create project now succeeds (and is owned by this email)
     r = client_auth.post(
@@ -129,11 +131,45 @@ def test_auth_otp_flow_and_project_gating(client_auth):
     r = client_auth.get("/api/projects")
     assert r.status_code == 401, r.text
 
-
-def test_auth_request_code_rate_limited(client_auth_rl):
-    email = "test@example.com"
-    r = client_auth_rl.post("/api/auth/request_code", json={"email": email})
+    # Login succeeds and restores access
+    r = client_auth.post("/api/auth/login", json={"username": me["username"], "password": password})
     assert r.status_code == 200, r.text
-    r = client_auth_rl.post("/api/auth/request_code", json={"email": email})
+    me2 = r.json()
+    assert me2["authenticated"] is True
+    assert me2["username"] == me["username"]
+
+    r = client_auth.get("/api/projects")
+    assert r.status_code == 200, r.text
+    ids = [p["id"] for p in r.json()]
+    assert pid in ids
+
+
+def test_auth_register_rate_limited(client_auth_rl):
+    email = "test@example.com"
+    password = "test-password-123"
+    invite = _get_any_unredeemed_invite_code()
+    r = client_auth_rl.post(
+        "/api/auth/register",
+        json={
+            "invite_code": invite,
+            "email": email,
+            "password": password,
+            "country": "US",
+            "referral": "x",
+            "opinion": None,
+        },
+    )
+    assert r.status_code == 200, r.text
+    r = client_auth_rl.post(
+        "/api/auth/register",
+        json={
+            "invite_code": invite,  # still required by schema; rate limit triggers before invite redemption
+            "email": email,
+            "password": password,
+            "country": "US",
+            "referral": "x",
+            "opinion": None,
+        },
+    )
     assert r.status_code == 429, r.text
     assert r.json().get("detail") == "RL_LIMITED"

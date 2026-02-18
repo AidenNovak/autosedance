@@ -105,7 +105,10 @@ npm run dev
 打开 `http://localhost:3612`。
 
 - 首次使用需要邮箱验证码登录（右上角 Login）。
-- 前端默认会把同源的 `/api/*` 通过 Next rewrites 代理到后端（默认 `http://localhost:8000`），因此对外部署时可以只暴露前端端口/域名，把后端端口留在内网或仅监听 `127.0.0.1`。
+- 前端默认会把同源的 `/api/*` 通过 Next rewrites 代理到后端（本地默认 `http://localhost:8000/api`）。
+  - 本地开发一般不需要配环境变量。
+  - 部署到 Vercel / 需要代理到远程后端时：设置 `BACKEND_INTERNAL_URL=http://<host>/api`（staging 可用 `http://<host>/api-staging`）。
+  - 注意：在 Vercel 上不要设置 `NEXT_PUBLIC_BACKEND_URL`，否则浏览器会跨域直连后端，cookie session 很容易失效。
 
 ### CLI（当前会在等待视频时结束）
 

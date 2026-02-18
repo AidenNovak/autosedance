@@ -1,0 +1,20 @@
+[Unit]
+Description=AutoSedance API (staging)
+After=network.target
+
+[Service]
+Type=simple
+
+User=autosedance
+WorkingDirectory=/srv/autosedance
+
+EnvironmentFile=/etc/autosedance/staging.env
+
+ExecStart=/srv/autosedance/.venv/bin/python -m uvicorn autosedance.server.app:app --host 127.0.0.1 --port 8001
+
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+

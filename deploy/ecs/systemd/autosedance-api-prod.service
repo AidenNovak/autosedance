@@ -1,0 +1,22 @@
+[Unit]
+Description=AutoSedance API (prod)
+After=network.target
+
+[Service]
+Type=simple
+
+# Create a dedicated user (recommended) and adjust paths.
+User=autosedance
+WorkingDirectory=/srv/autosedance
+
+EnvironmentFile=/etc/autosedance/prod.env
+
+# Prefer a venv python to avoid system package drift.
+ExecStart=/srv/autosedance/.venv/bin/python -m uvicorn autosedance.server.app:app --host 127.0.0.1 --port 8000
+
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+

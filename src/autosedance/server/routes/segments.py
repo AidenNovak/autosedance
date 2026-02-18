@@ -78,7 +78,7 @@ def generate_segment(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -153,7 +153,7 @@ def update_segment(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -202,7 +202,7 @@ def get_segment_detail(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> SegmentDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -236,7 +236,7 @@ def upload_segment_video(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SegmentDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -336,7 +336,7 @@ def get_segment_video(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ):
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.video_path:
         raise HTTPException(status_code=404, detail="Video not found")
@@ -353,7 +353,7 @@ def extract_segment_frame(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SegmentDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -392,7 +392,7 @@ def analyze_segment(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -475,7 +475,7 @@ def get_segment_frame(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ):
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.last_frame_path:
         raise HTTPException(status_code=404, detail="Frame not found")
@@ -493,7 +493,7 @@ def download_segment_frame(
     session: Session = Depends(get_session),
 ):
     """Force-download the frame (no CORS/fetch needed on the frontend)."""
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     seg = _get_segment(session, project_id, index)
     if seg is None or not seg.last_frame_path:
         raise HTTPException(status_code=404, detail="Frame not found")

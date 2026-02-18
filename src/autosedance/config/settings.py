@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     auth_require_for_reads: bool = True
     auth_require_for_writes: bool = True
     auth_secret_key: str = ""  # required in prod; empty means ephemeral (dev-only)
+    auth_allow_otp: bool = False  # legacy OTP endpoints (dev-only); keep disabled in prod
     auth_otp_ttl_minutes: int = 10
     auth_otp_min_interval_seconds: int = 60
     auth_otp_max_verify_attempts: int = 8
@@ -57,6 +58,20 @@ class Settings(BaseSettings):
     auth_rl_request_code_per_ip_per_hour: int = 30
     auth_rl_request_code_per_email_per_hour: int = 6
     auth_rl_verify_per_ip_per_hour: int = 120
+    auth_rl_register_per_ip_per_hour: int = 30
+    auth_rl_register_per_email_per_hour: int = 6
+    auth_rl_login_per_ip_per_hour: int = 240
+
+    # Invite codes (viral onboarding)
+    invite_enabled: bool = True
+    invite_children_per_redeem: int = 5
+    invite_seed_count: int = 50
+    invite_code_prefix: str = "AS-"
+
+    # Overload protection (basic backpressure)
+    overload_max_inflight_requests: int = 30
+    overload_acquire_timeout_seconds: float = 0.1
+    overload_retry_after_seconds: int = 10
 
     # Session cookie
     session_cookie_name: str = "autos_session"

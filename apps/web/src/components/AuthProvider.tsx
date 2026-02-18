@@ -2,15 +2,15 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import type { AuthMe } from "@/lib/api";
-import { authLogout, authMe, authRequestCode, authVerifyCode } from "@/lib/api";
+import type { AuthLoginIn, AuthMe, AuthRegisterIn, AuthRegisterOut } from "@/lib/api";
+import { authLogin, authLogout, authMe, authRegister } from "@/lib/api";
 
 type AuthContextValue = {
   me: AuthMe | null;
   loading: boolean;
   refresh: () => Promise<void>;
-  requestCode: (email: string) => Promise<void>;
-  verifyCode: (email: string, code: string) => Promise<void>;
+  register: (input: AuthRegisterIn) => Promise<AuthRegisterOut>;
+  login: (input: AuthLoginIn) => Promise<AuthMe>;
   logout: () => Promise<void>;
 };
 
@@ -26,7 +26,7 @@ export function AuthProvider(props: { children: React.ReactNode }) {
       const m = await authMe();
       setMe(m);
     } catch {
-      setMe({ authenticated: false, email: null });
+      setMe({ authenticated: false, user_id: null, username: null, email: null });
     } finally {
       setLoading(false);
     }
@@ -36,26 +36,26 @@ export function AuthProvider(props: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const requestCode = useCallback(
-    async (email: string) => {
-      await authRequestCode(email);
-    },
-    []
-  );
-
-  const verifyCode = useCallback(async (email: string, code: string) => {
-    const m = await authVerifyCode(email, code);
+  const register = useCallback(async (input: AuthRegisterIn) => {
+    const m = await authRegister(input);
     setMe(m);
+    return m;
+  }, []);
+
+  const login = useCallback(async (input: AuthLoginIn) => {
+    const m = await authLogin(input);
+    setMe(m);
+    return m;
   }, []);
 
   const logout = useCallback(async () => {
     await authLogout();
-    setMe({ authenticated: false, email: null });
+    setMe({ authenticated: false, user_id: null, username: null, email: null });
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
-    return { me, loading, refresh, requestCode, verifyCode, logout };
-  }, [me, loading, refresh, requestCode, verifyCode, logout]);
+    return { me, loading, refresh, register, login, logout };
+  }, [me, loading, refresh, register, login, logout]);
 
   return <AuthContext.Provider value={value}>{props.children}</AuthContext.Provider>;
 }
@@ -65,4 +65,3 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
 }
-

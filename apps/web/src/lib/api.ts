@@ -75,7 +75,32 @@ export type Job = {
 
 export type AuthMe = {
   authenticated: boolean;
+  user_id?: string | null;
+  username?: string | null;
   email?: string | null;
+};
+
+export type AuthRegisterIn = {
+  invite_code: string;
+  email: string;
+  username?: string | null;
+  password: string;
+  country: string;
+  referral: string;
+  opinion?: string | null;
+};
+
+export type AuthRegisterOut = AuthMe & {
+  invites?: string[];
+};
+
+export type AuthLoginIn = {
+  username: string;
+  password: string;
+};
+
+export type AuthInvitesOut = {
+  invites: string[];
 };
 
 // Convenience aliases for older imports.
@@ -99,6 +124,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401) throw new Error("AUTH_REQUIRED");
+    if (res.status === 429) throw new Error("RL_LIMITED");
     let detail = `${res.status} ${res.statusText}`;
     try {
       const body = await res.json();
@@ -106,6 +132,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // ignore
     }
+    if (res.status === 503 && detail === "OVERLOADED") throw new Error("OVERLOADED");
     throw new Error(detail);
   }
 
@@ -238,18 +265,22 @@ export async function authMe(): Promise<AuthMe> {
   return req<AuthMe>("/api/auth/me");
 }
 
-export async function authRequestCode(email: string): Promise<{ ok: boolean }> {
-  return req<{ ok: boolean }>("/api/auth/request_code", {
+export async function authRegister(input: AuthRegisterIn): Promise<AuthRegisterOut> {
+  return req<AuthRegisterOut>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email })
+    body: JSON.stringify(input)
   });
 }
 
-export async function authVerifyCode(email: string, code: string): Promise<AuthMe> {
-  return req<AuthMe>("/api/auth/verify_code", {
+export async function authLogin(input: AuthLoginIn): Promise<AuthMe> {
+  return req<AuthMe>("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, code })
+    body: JSON.stringify(input)
   });
+}
+
+export async function authInvites(): Promise<AuthInvitesOut> {
+  return req<AuthInvitesOut>("/api/auth/invites");
 }
 
 export async function authLogout(): Promise<{ ok: boolean }> {

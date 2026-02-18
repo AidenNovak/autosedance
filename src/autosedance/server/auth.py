@@ -57,7 +57,7 @@ def hash_session_token(token: str) -> str:
 
 @dataclass(frozen=True)
 class AuthUser:
-    email: str
+    user_id: str
     session_id: str
 
 
@@ -95,7 +95,7 @@ def get_current_user(
     except Exception:
         session.rollback()
 
-    return AuthUser(email=rec.email, session_id=rec.id)
+    return AuthUser(user_id=rec.email, session_id=rec.id)
 
 
 def require_user(
@@ -104,7 +104,7 @@ def require_user(
     settings = get_settings()
     if not settings.auth_enabled or not settings.auth_require_for_writes:
         # Auth is disabled or optional; allow the request through.
-        return user or AuthUser(email="", session_id="")
+        return user or AuthUser(user_id="", session_id="")
 
     if not user:
         raise HTTPException(status_code=401, detail="AUTH_REQUIRED")
@@ -116,7 +116,7 @@ def require_read_user(
 ) -> AuthUser:
     settings = get_settings()
     if not settings.auth_enabled or not settings.auth_require_for_reads:
-        return user or AuthUser(email="", session_id="")
+        return user or AuthUser(user_id="", session_id="")
     if not user:
         raise HTTPException(status_code=401, detail="AUTH_REQUIRED")
     return user

@@ -48,7 +48,7 @@ def create_job(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> JobOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -80,7 +80,7 @@ def list_jobs(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> List[JobOut]:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     if limit < 1:
         limit = 1
     if limit > 200:
@@ -106,7 +106,7 @@ def get_job(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> JobOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

@@ -98,6 +98,7 @@ class AuthSession(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("token_hash"),)
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    # Principal identifier (currently a user_id string; legacy deployments may have used email).
     email: str = Field(index=True)
     token_hash: str = Field(index=True)
 
@@ -105,6 +106,63 @@ class AuthSession(SQLModel, table=True):
     expires_at: datetime = Field(index=True)
     revoked_at: Optional[datetime] = None
     last_seen_at: Optional[datetime] = None
+
+
+class UserAccount(SQLModel, table=True):
+    """User account for username/password auth (no email OTP)."""
+
+    __table_args__ = (UniqueConstraint("username"),)
+
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    username: str = Field(index=True)
+    password_hash: str
+
+    # Collected for contact/lead purposes; not used as the auth identity.
+    email: str = Field(index=True)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+class InviteCode(SQLModel, table=True):
+    """Single-use invite code.
+
+    Redeeming one code mints a fixed number of child codes owned by the new user.
+    """
+
+    code: str = Field(primary_key=True)
+
+    parent_code: Optional[str] = Field(default=None, index=True)
+    owner_user_id: Optional[str] = Field(default=None, index=True)
+
+    redeemed_by_user_id: Optional[str] = Field(default=None, index=True)
+    redeemed_at: Optional[datetime] = Field(default=None, index=True)
+    disabled_at: Optional[datetime] = Field(default=None, index=True)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+class UserLead(SQLModel, table=True):
+    """User registration/lead data collected at login time.
+
+    This is intentionally simple: it helps understand where users come from
+    without requiring email OTP delivery.
+    """
+
+    __table_args__ = (UniqueConstraint("email"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True)
+
+    country: str = ""
+    referral: str = ""
+    opinion: str = ""
+
+    ip: Optional[str] = None
+    user_agent: Optional[str] = None
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
 
 
 class ProjectOwner(SQLModel, table=True):

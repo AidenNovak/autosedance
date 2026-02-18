@@ -13,8 +13,11 @@ function setLangCookie(locale: Locale) {
   document.cookie = `autos_lang=${encodeURIComponent(locale)}; path=/; max-age=${maxAge}; samesite=lax`;
 }
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher(props?: { minWidth?: number; reload?: boolean; ariaLabel?: string }) {
   const { locale, setLocale, t } = useI18n();
+  const minWidth = props?.minWidth ?? 160;
+  const reload = props?.reload ?? true;
+  const ariaLabel = props?.ariaLabel ?? t("reg.lang_label");
 
   const options = useMemo(() => {
     return SUPPORTED_LOCALES.map((loc) => ({
@@ -31,11 +34,13 @@ export function LanguageSwitcher() {
         const next = normalizeLocale(e.target.value);
         setLocale(next);
         setLangCookie(next);
-        // RootLayout is a Server Component; reload to apply <html lang/dir> and server-rendered strings.
-        window.location.reload();
+        if (reload) {
+          // RootLayout is a Server Component; reload to apply <html lang/dir> and server-rendered strings.
+          window.location.reload();
+        }
       }}
-      style={{ width: "auto", minWidth: 160 }}
-      aria-label="Language"
+      style={{ width: "auto", minWidth }}
+      aria-label={ariaLabel}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -45,4 +50,3 @@ export function LanguageSwitcher() {
     </select>
   );
 }
-

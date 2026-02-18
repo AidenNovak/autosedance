@@ -1,6 +1,9 @@
 :root {
   --bg0: #0c0f14;
   --bg1: #121826;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-serif: ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --card: rgba(255, 255, 255, 0.06);
   --card2: rgba(255, 255, 255, 0.09);
   --text: rgba(255, 255, 255, 0.92);
@@ -43,6 +46,13 @@ pre {
 .container {
   width: min(1100px, calc(100% - 32px));
   margin: 0 auto;
+}
+
+.center-wrap {
+  min-height: calc(100vh - 140px);
+  display: grid;
+  place-items: center;
+  padding: 44px 0;
 }
 
 .topbar {
@@ -99,6 +109,11 @@ pre {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+.card.solid {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .card .hd {
@@ -172,13 +187,18 @@ pre {
 .select,
 .textarea {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   padding: 10px 12px;
   color: var(--text);
   font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, sans-serif;
   font-size: 14px;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(255, 255, 255, 0.46);
 }
 
 .textarea {
@@ -226,6 +246,14 @@ pre {
   border-radius: 16px;
   box-shadow: var(--shadow);
   z-index: 60;
+}
+
+.notice {
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
 }
 
 .kvs {

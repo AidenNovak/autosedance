@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
-import { Fraunces, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 
 import { I18nProvider } from "@/components/I18nProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -10,25 +9,6 @@ import { AuthWidget } from "@/components/AuthWidget";
 import { getMessages, isRtl, resolveLocale, t as translate } from "@/i18n";
 
 import "./globals.css";
-
-const sans = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap"
-});
-
-const serif = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap"
-});
-
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--font-mono",
-  display: "swap"
-});
 
 export const metadata: Metadata = {
   title: "AutoSedance",
@@ -42,11 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const messages = getMessages(locale);
 
   return (
-    <html
-      lang={locale}
-      dir={isRtl(locale) ? "rtl" : "ltr"}
-      className={`${sans.variable} ${serif.variable} ${mono.variable}`}
-    >
+    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"}>
       <body>
         <I18nProvider initialLocale={locale}>
           <AuthProvider>
@@ -60,6 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <div className="brand-sub">{translate(messages, "app.tagline")}</div>
                   </div>
                   <div className="row">
+                    <Link className="btn" href="/invites">
+                      {translate(messages, "topbar.invites")}
+                    </Link>
                     <Link className="btn" href="/i18n">
                       {translate(messages, "topbar.translations")}
                     </Link>

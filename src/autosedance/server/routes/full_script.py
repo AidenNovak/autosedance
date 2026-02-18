@@ -40,7 +40,7 @@ def generate_full_script(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -90,7 +90,7 @@ def update_full_script(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

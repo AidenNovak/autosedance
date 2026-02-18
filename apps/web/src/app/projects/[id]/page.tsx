@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useAuth } from "@/components/AuthProvider";
+import { RegisterCard } from "@/components/RegisterCard";
 import type { Job, ProjectDetail, SegmentDetail, SegmentSummary } from "@/lib/api";
 import {
   backendUrl,
@@ -55,6 +57,8 @@ function statusDotClass(status: string) {
 
 export default function ProjectPage() {
   const { t, locale } = useI18n();
+  const { me, loading: authLoading } = useAuth();
+  const authenticated = !!me?.authenticated;
   const params = useParams<{ id: string }>();
   const projectId = params.id;
 
@@ -160,6 +164,7 @@ export default function ProjectPage() {
 
   // Initial load
   useEffect(() => {
+    if (!authenticated) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -181,7 +186,7 @@ export default function ProjectPage() {
       pollingRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  }, [projectId, authenticated]);
 
   // Load selected segment detail on change.
   useEffect(() => {
@@ -246,6 +251,20 @@ export default function ProjectPage() {
     const end = Math.min((selectedIndex + 1) * project.segment_duration, project.total_duration_seconds);
     return `${start}s - ${end}s`;
   }, [project, selectedIndex]);
+
+  if (authLoading && !me) {
+    return (
+      <div className="card">
+        <div className="bd">
+          <div className="muted">{t("common.loading")}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <RegisterCard />;
+  }
 
   if (loading) {
     return (

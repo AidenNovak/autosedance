@@ -52,8 +52,8 @@ def create_project(
     session.refresh(project)
 
     ensure_project_dirs(project.id)
-    if user.email:
-        session.add(ProjectOwner(project_id=project.id, email=user.email, created_at=now_utc()))
+    if user.user_id:
+        session.add(ProjectOwner(project_id=project.id, email=user.user_id, created_at=now_utc()))
         session.commit()
 
     segments: List[Segment] = []
@@ -65,8 +65,8 @@ def list_projects(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> List[ProjectSummaryOut]:
-    if user.email:
-        owners = session.exec(select(ProjectOwner).where(ProjectOwner.email == user.email)).all()
+    if user.user_id:
+        owners = session.exec(select(ProjectOwner).where(ProjectOwner.email == user.user_id)).all()
         ids = [o.project_id for o in owners]
         if not ids:
             return []
@@ -93,7 +93,7 @@ def get_project(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -112,7 +112,7 @@ def assemble_project(
     user: AuthUser = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ProjectDetailOut:
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -152,7 +152,7 @@ def get_final_video(
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ):
-    require_project_owner(session, project_id, user.email)
+    require_project_owner(session, project_id, user.user_id)
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

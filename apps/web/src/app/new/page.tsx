@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { useAuth } from "@/components/AuthProvider";
 import { useI18n } from "@/components/I18nProvider";
+import { RegisterCard } from "@/components/RegisterCard";
 import { createProject } from "@/lib/api";
 import { humanizeError } from "@/lib/errors";
 
@@ -11,6 +13,8 @@ const DURATIONS = [30, 45, 60, 75, 90, 120, 180];
 
 export default function NewProjectPage() {
   const { t } = useI18n();
+  const { me, loading: authLoading } = useAuth();
+  const authenticated = !!me?.authenticated;
   const router = useRouter();
 
   const [duration, setDuration] = useState<number>(60);
@@ -40,6 +44,20 @@ export default function NewProjectPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (authLoading && !me) {
+    return (
+      <div className="card">
+        <div className="bd">
+          <div className="muted">{t("common.loading")}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <RegisterCard />;
   }
 
   return (

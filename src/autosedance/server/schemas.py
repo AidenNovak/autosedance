@@ -143,9 +143,34 @@ class AuthVerifyCodeIn(BaseModel):
     code: str
 
 
+class AuthRegisterIn(BaseModel):
+    invite_code: str
+    email: str
+    username: Optional[str] = None
+    password: str
+    country: str
+    referral: str
+    opinion: Optional[str] = None
+
+
+class AuthLoginIn(BaseModel):
+    username: str
+    password: str
+
+
 class AuthMeOut(BaseModel):
     authenticated: bool
+    user_id: Optional[str] = None
+    username: Optional[str] = None
     email: Optional[str] = None
+
+
+class AuthRegisterOut(AuthMeOut):
+    invites: List[str] = Field(default_factory=list)
+
+
+class AuthInvitesOut(BaseModel):
+    invites: List[str] = Field(default_factory=list)
 
 
 class AuthOkOut(BaseModel):

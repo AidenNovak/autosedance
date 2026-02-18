@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/components/AuthProvider";
+import { RegisterCard } from "@/components/RegisterCard";
 import type { ProjectSummary } from "@/lib/api";
 import { backendUrl, listProjects } from "@/lib/api";
 import { humanizeError } from "@/lib/errors";
@@ -10,8 +12,11 @@ import { useI18n } from "@/components/I18nProvider";
 
 export default function HomePage() {
   const { t } = useI18n();
+  const { me, loading: authLoading } = useAuth();
+  const authenticated = !!me?.authenticated;
+
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
@@ -28,8 +33,29 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    if (!authenticated) {
+      setProjects([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]);
+
+  if (authLoading && !me) {
+    return (
+      <div className="card">
+        <div className="bd">
+          <div className="muted">{t("common.loading")}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <RegisterCard />;
+  }
 
   return (
     <div className="grid two">
