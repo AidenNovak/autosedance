@@ -252,6 +252,16 @@ export default function ProjectPage() {
     return `${start}s - ${end}s`;
   }, [project, selectedIndex]);
 
+  const canonDisplay = useMemo(() => {
+    const raw = (project?.canon_summaries || "").trim();
+    if (!raw) return "";
+    return raw
+      .split("\n---\n")
+      .map((item) => item.replace(/^\[#IDX=\d+\]\s*/, "").trim())
+      .filter(Boolean)
+      .join("\n---\n");
+  }, [project?.canon_summaries]);
+
   if (authLoading && !me) {
     return (
       <div className="card">
@@ -291,16 +301,6 @@ export default function ProjectPage() {
   }
 
   if (!project) return null;
-
-  const canonDisplay = useMemo(() => {
-    const raw = (project.canon_summaries || "").trim();
-    if (!raw) return "";
-    return raw
-      .split("\n---\n")
-      .map((item) => item.replace(/^\[#IDX=\d+\]\s*/, "").trim())
-      .filter(Boolean)
-      .join("\n---\n");
-  }, [project.canon_summaries]);
 
   function trStatus(status: string): string {
     const key = `status.${status}`;

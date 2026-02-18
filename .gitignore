@@ -24,5 +24,9 @@ apps/web/node_modules/
 apps/web/.next/
 .vercel/
 
+# Playwright
+playwright-report/
+test-results/
+
 # Local ops artifacts / backups (not meant for git)
 server_backups/
