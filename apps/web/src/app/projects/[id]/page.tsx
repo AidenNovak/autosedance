@@ -383,7 +383,7 @@ export default function ProjectPage() {
                     title={t("project.segment.tooltip", { n: s.index + 1, status: trStatus(s.status) })}
                   >
                     <span className={statusDotClass(s.status)} />
-                    <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <div style={{ display: "grid", gap: 4, flex: 1, minWidth: 0, textAlign: "start" }}>
                       <div className="segtitle">
                         #{pad3Display(s.index)}{" "}
                         {s.index === project.current_segment_index ? (

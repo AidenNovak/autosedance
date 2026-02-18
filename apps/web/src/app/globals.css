@@ -75,6 +75,7 @@ pre {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
 }
 
 .brand-title {
@@ -88,6 +89,30 @@ pre {
   font-family: var(--font-serif), Georgia, serif;
   color: var(--muted);
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 56ch;
+}
+
+.topbar-inner > .row {
+  /* Long locales (e.g. Español) can overflow; keep controls on one line and scroll. */
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.topbar-inner > .row > * {
+  flex: 0 0 auto;
+}
+
+.topbar-inner > .row .btn,
+.topbar-inner > .row .select,
+.topbar-inner > .row .pill {
+  white-space: nowrap;
 }
 
 .grid {
@@ -237,7 +262,7 @@ pre {
 
 .auth-panel {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   top: calc(100% + 10px);
   width: min(360px, calc(100vw - 32px));
   padding: 14px;
@@ -323,7 +348,7 @@ pre {
 .segscroll {
   max-height: 54vh;
   overflow: auto;
-  padding-right: 4px;
+  padding-inline-end: 4px;
 }
 
 @media (min-width: 980px) {

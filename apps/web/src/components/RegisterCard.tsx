@@ -226,7 +226,7 @@ export function RegisterCard() {
       <div className="card solid" style={{ width: "min(620px, 100%)" }}>
         <div className="hd" style={{ alignItems: "center" }}>
           <h2>{mode === "register" ? t("reg.title") : t("login.title")}</h2>
-          <div style={{ marginLeft: "auto" }}>
+          <div style={{ marginInlineStart: "auto" }}>
             <LanguageSwitcher
               reload
               minWidth={140}
@@ -278,7 +278,9 @@ export function RegisterCard() {
               <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
                 {invites.map((c) => (
                   <div key={c} className="row" style={{ justifyContent: "space-between", gap: 10 }}>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>{c}</div>
+                    <div dir="ltr" style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>
+                      {c}
+                    </div>
                     <button
                       type="button"
                       className="btn"
@@ -340,6 +342,7 @@ export function RegisterCard() {
                   value={invite}
                   onChange={(e) => setInvite(e.target.value)}
                   disabled={busy}
+                  dir="ltr"
                   required
                 />
               </div>
@@ -354,6 +357,7 @@ export function RegisterCard() {
                   inputMode="email"
                   autoComplete="email"
                   disabled={busy}
+                  dir="ltr"
                   required
                 />
               </div>
@@ -368,6 +372,7 @@ export function RegisterCard() {
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={busy}
                     style={{ flex: 1, minWidth: 240 }}
+                    dir="ltr"
                   />
                   <button
                     type="button"
@@ -469,6 +474,7 @@ export function RegisterCard() {
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={busy}
                   autoComplete="username"
+                  dir="ltr"
                   required
                 />
               </div>
