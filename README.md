@@ -11,8 +11,8 @@ AutoSedance 是一个交互式 AI 视频工作流：系统负责剧本/分镜与
 
 Notes / 说明:
 
-- The demo is public and invite-gated. Please do not upload sensitive content.
-- 该 Demo 为公开环境且需要邀请码注册，请勿上传敏感内容。
+- The demo is public. Invite code is currently **optional** (internal testing). Please do not upload sensitive content.
+- 该 Demo 为公开环境；当前邀请码为**可选**（内测阶段）。请勿上传敏感内容。
 
 ## Theme / 主题
 
@@ -62,17 +62,21 @@ Open `http://localhost:3612`.
 
 ## Login / 登录
 
-- Register: invite code + email + password (+ optional profile fields).
+- Register: email + password (+ optional invite code / profile fields).
 - Login: username + password.
 - After registering, you will receive 5 new invite codes (see `/invites`).
 
-- 注册：邀请码 + 邮箱 + 密码（以及可选的来源/国家/意见等字段）。
+- 注册：邮箱 + 密码（邀请码/来源/国家/意见等字段均为可选）。
 - 登录：用户名 + 密码。
 - 注册成功后会获得 5 个新的邀请码（见 `/invites`）。
 
-Local seed invite codes are written to `output/invite_seed_codes.txt` after the backend starts.
+Local seed invite codes are written to `output/invite_seed_codes.txt` after the backend starts (optional).
 
-本地首次邀请码会在后端启动后写入 `output/invite_seed_codes.txt`。
+本地首次邀请码会在后端启动后写入 `output/invite_seed_codes.txt`（可选使用）。
+
+To re-enable invite-gated registration, set `INVITE_ENABLED=1` in the backend environment and restart the API.
+
+如需重新开启“必须邀请码注册”，将后端环境变量 `INVITE_ENABLED=1` 并重启 API。
 
 ## Deployment / 部署
 

@@ -1,0 +1,23 @@
+[Unit]
+Description=AutoSedance Web (Next.js) (prod)
+After=network.target
+
+[Service]
+Type=simple
+
+User=autosedance
+WorkingDirectory=/srv/autosedance/apps/web
+
+Environment=NODE_ENV=production
+
+# Ensure dependencies are installed and the app is built:
+# - npm ci
+# - npm run build
+ExecStart=/usr/bin/npm run start
+
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+
