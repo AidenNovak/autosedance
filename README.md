@@ -37,6 +37,8 @@ cp .env.example .env
 # - AUTH_SECRET_KEY (recommended)
 
 uv pip install -e .
+# or:
+# pip install -e .
 autosedance server --reload
 ```
 
@@ -70,6 +72,8 @@ Local seed invite codes are written to `output/invite_seed_codes.txt` after the 
 
 ### Frontend (Vercel) / 前端（Vercel）
 
+Set the Vercel Project Root Directory to `apps/web`.
+
 Set `BACKEND_INTERNAL_URL` on Vercel and redeploy:
 
 - Preview: `http://<ECS_IP>/api-staging`
@@ -86,4 +90,3 @@ See templates in `deploy/ecs/`.
 ## License
 
 Apache-2.0
-
