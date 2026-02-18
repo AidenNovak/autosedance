@@ -343,7 +343,6 @@ export function RegisterCard() {
                   onChange={(e) => setInvite(e.target.value)}
                   disabled={busy}
                   dir="ltr"
-                  required
                 />
               </div>
 
