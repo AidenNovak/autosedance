@@ -21,6 +21,7 @@
   "common.generating": "生成中…",
   "common.create": "创建",
   "common.creating": "创建中…",
+  "common.optional": "可选",
   "common.same_origin": "同源（/api）",
   "common.internal_error": "内部错误，请稍后重试。",
 

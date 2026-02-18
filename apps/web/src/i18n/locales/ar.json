@@ -21,6 +21,7 @@
   "common.generating": "جارٍ التوليد…",
   "common.create": "إنشاء",
   "common.creating": "جارٍ الإنشاء…",
+  "common.optional": "اختياري",
   "common.same_origin": "نفس الأصل (/api)",
   "common.internal_error": "خطأ داخلي. حاول مرة أخرى.",
 

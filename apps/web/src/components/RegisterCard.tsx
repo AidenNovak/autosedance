@@ -335,18 +335,6 @@ export function RegisterCard() {
               style={{ display: "grid", gap: 12 }}
             >
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">{t("reg.invite")}</div>
-                <input
-                  className="input"
-                  placeholder={t("reg.invite_ph")}
-                  value={invite}
-                  onChange={(e) => setInvite(e.target.value)}
-                  disabled={busy}
-                  dir="ltr"
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
                 <div className="muted">{t("reg.email")}</div>
                 <input
                   className="input"
@@ -438,6 +426,21 @@ export function RegisterCard() {
                   value={opinion}
                   onChange={(e) => setOpinion(e.target.value)}
                   disabled={busy}
+                />
+              </div>
+
+              <div className="row" style={{ gap: 10 }}>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {t("reg.invite")} ({t("common.optional")})
+                </div>
+                <input
+                  className="input"
+                  placeholder={t("reg.invite_ph")}
+                  value={invite}
+                  onChange={(e) => setInvite(e.target.value)}
+                  disabled={busy}
+                  dir="ltr"
+                  style={{ flex: 1, minWidth: 240 }}
                 />
               </div>
 

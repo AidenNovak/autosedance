@@ -21,6 +21,7 @@
   "common.generating": "Generating…",
   "common.create": "Create",
   "common.creating": "Creating…",
+  "common.optional": "optional",
   "common.same_origin": "same-origin (/api)",
   "common.internal_error": "Internal error. Please try again.",
 

@@ -21,6 +21,7 @@
   "common.generating": "生成中…",
   "common.create": "作成",
   "common.creating": "作成中…",
+  "common.optional": "任意",
   "common.same_origin": "同一オリジン（/api）",
   "common.internal_error": "内部エラーです。もう一度お試しください。",
 
