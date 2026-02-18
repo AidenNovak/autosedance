@@ -1,5 +1,5 @@
 /* Anime / kawaii skin.
-   Scoped under html[data-theme="light"] so the default theme remains unchanged. */
+   Scoped under html[data-theme="light"] so it can coexist with the dark theme. */
 
 html[data-theme="light"] {
   color-scheme: light;

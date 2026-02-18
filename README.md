@@ -14,6 +14,12 @@ Notes / 说明:
 - The demo is public and invite-gated. Please do not upload sensitive content.
 - 该 Demo 为公开环境且需要邀请码注册，请勿上传敏感内容。
 
+## Theme / 主题
+
+- Default: Light (anime / kawaii UI).
+- Alternate: Dark.
+- Saved in cookie: `autos_theme=light|dark` (legacy values `anime`/`default` are still accepted).
+
 ## Workflow / 工作流程
 
 1. Create a project, the system generates the full script and the first segment prompt.
@@ -80,6 +86,8 @@ Set `BACKEND_INTERNAL_URL` on Vercel and redeploy:
 - Production: `http://<ECS_IP>/api`
 
 Do not set `NEXT_PUBLIC_BACKEND_URL` on Vercel, keep the browser on same-origin `/api/*`.
+
+Custom domain (e.g. `aiden-novak.com`): add it in Vercel Project → Domains and follow the DNS instructions.
 
 ### Backend (ECS/VM) / 后端（ECS/云服务器）
 
