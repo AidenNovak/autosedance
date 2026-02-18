@@ -1,0 +1,231 @@
+/* Anime / kawaii skin.
+   Scoped under html[data-theme="anime"] so the default theme remains unchanged. */
+
+html[data-theme="anime"] {
+  color-scheme: light;
+
+  --bg0: #fff3fa;
+  --bg1: #eef7ff;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+
+  --card: rgba(255, 255, 255, 0.82);
+  --card2: rgba(255, 255, 255, 0.92);
+  --text: rgba(20, 24, 35, 0.92);
+  --muted: rgba(20, 24, 35, 0.62);
+
+  --danger: #ff3b6b;
+  --ok: #2dd4bf;
+  --accent: #ff4fa3;
+  --ring: rgba(255, 79, 163, 0.32);
+
+  --border: rgba(20, 24, 35, 0.14);
+  --shadow: 0 20px 50px rgba(29, 33, 52, 0.16);
+  --radius: 18px;
+}
+
+html[data-theme="anime"] body {
+  background: radial-gradient(circle, rgba(20, 24, 35, 0.12) 1px, transparent 1.6px) 0 0 / 18px 18px,
+    radial-gradient(1200px 600px at 12% 10%, rgba(255, 79, 163, 0.28), transparent 55%),
+    radial-gradient(900px 500px at 82% 18%, rgba(96, 165, 250, 0.26), transparent 55%),
+    radial-gradient(1000px 600px at 55% 95%, rgba(45, 212, 191, 0.18), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+}
+
+html[data-theme="anime"] .topbar {
+  background: rgba(255, 255, 255, 0.65);
+  border-bottom: 1px solid rgba(255, 79, 163, 0.22);
+  box-shadow: 0 10px 30px rgba(29, 33, 52, 0.1);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+}
+
+html[data-theme="anime"] .brand-title {
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  color: #ff4fa3;
+}
+
+@supports (-webkit-background-clip: text) {
+  html[data-theme="anime"] .brand-title {
+    background: linear-gradient(90deg, #ff4fa3, #8b5cf6, #60a5fa);
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+
+html[data-theme="anime"] .brand-sub {
+  color: var(--muted);
+}
+
+html[data-theme="anime"] .card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78));
+  border-color: rgba(20, 24, 35, 0.12);
+  box-shadow: 0 18px 45px rgba(29, 33, 52, 0.14), 0 0 0 1px rgba(255, 79, 163, 0.1) inset,
+    0 0 0 2px rgba(96, 165, 250, 0.08) inset;
+}
+
+html[data-theme="anime"] .card.solid {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.82));
+  border-color: rgba(255, 79, 163, 0.2);
+}
+
+html[data-theme="anime"] .card .hd {
+  border-bottom: 1px solid rgba(20, 24, 35, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3));
+}
+
+html[data-theme="anime"] .btn {
+  border-color: rgba(20, 24, 35, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7));
+  color: rgba(20, 24, 35, 0.92);
+  box-shadow: 0 10px 22px rgba(29, 33, 52, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.65) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+html[data-theme="anime"] .btn::after {
+  content: "";
+  position: absolute;
+  top: -70%;
+  left: -120%;
+  width: 80%;
+  height: 240%;
+  transform: rotate(10deg);
+  background: linear-gradient(120deg, transparent 20%, rgba(255, 255, 255, 0.85) 50%, transparent 80%);
+  opacity: 0;
+  transition: left 520ms ease, opacity 180ms ease;
+  pointer-events: none;
+}
+
+html[data-theme="anime"] .btn:hover::after {
+  left: 140%;
+  opacity: 0.65;
+}
+
+html[data-theme="anime"] .btn:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.78));
+  border-color: rgba(255, 79, 163, 0.28);
+}
+
+html[data-theme="anime"] .btn.primary {
+  background: linear-gradient(180deg, rgba(255, 79, 163, 0.36), rgba(96, 165, 250, 0.22));
+  border-color: rgba(255, 79, 163, 0.38);
+  box-shadow: 0 14px 30px rgba(255, 79, 163, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.55) inset;
+}
+
+html[data-theme="anime"] .btn.danger {
+  background: linear-gradient(180deg, rgba(255, 59, 107, 0.22), rgba(255, 255, 255, 0.7));
+  border-color: rgba(255, 59, 107, 0.32);
+}
+
+html[data-theme="anime"] .input,
+html[data-theme="anime"] .select,
+html[data-theme="anime"] .textarea {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(20, 24, 35, 0.18);
+  color: rgba(20, 24, 35, 0.92);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+html[data-theme="anime"] .input::placeholder,
+html[data-theme="anime"] .textarea::placeholder {
+  color: rgba(20, 24, 35, 0.45);
+}
+
+html[data-theme="anime"] .input:focus,
+html[data-theme="anime"] .select:focus,
+html[data-theme="anime"] .textarea:focus {
+  border-color: rgba(255, 79, 163, 0.48);
+  box-shadow: 0 0 0 3px var(--ring), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+html[data-theme="anime"] .pill {
+  border-color: rgba(20, 24, 35, 0.16);
+  background: rgba(255, 255, 255, 0.65);
+  color: rgba(20, 24, 35, 0.72);
+}
+
+html[data-theme="anime"] .notice {
+  border-color: rgba(255, 79, 163, 0.28);
+  background: linear-gradient(180deg, rgba(255, 79, 163, 0.08), rgba(255, 255, 255, 0.55));
+}
+
+html[data-theme="anime"] .kv {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(20, 24, 35, 0.12);
+}
+
+html[data-theme="anime"] .segitem {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(20, 24, 35, 0.14);
+}
+
+html[data-theme="anime"] .segitem.active {
+  background: linear-gradient(180deg, rgba(255, 79, 163, 0.18), rgba(255, 255, 255, 0.58));
+  border-color: rgba(255, 79, 163, 0.34);
+  box-shadow: 0 14px 30px rgba(255, 79, 163, 0.12);
+}
+
+html[data-theme="anime"] .dot {
+  border-color: rgba(20, 24, 35, 0.22);
+  background: rgba(20, 24, 35, 0.1);
+  box-shadow: 0 0 0 3px rgba(20, 24, 35, 0.06);
+}
+
+html[data-theme="anime"] .dot.ok {
+  background: rgba(45, 212, 191, 0.95);
+  border-color: rgba(45, 212, 191, 0.65);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.18);
+}
+
+html[data-theme="anime"] .dot.bad {
+  background: rgba(255, 59, 107, 0.95);
+  border-color: rgba(255, 59, 107, 0.65);
+  box-shadow: 0 0 0 3px rgba(255, 59, 107, 0.16);
+}
+
+html[data-theme="anime"] .dot.warn {
+  background: rgba(251, 191, 36, 0.95);
+  border-color: rgba(251, 191, 36, 0.65);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.14);
+}
+
+html[data-theme="anime"] .dot.mid {
+  background: rgba(96, 165, 250, 0.95);
+  border-color: rgba(96, 165, 250, 0.65);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+}
+
+html[data-theme="anime"] .dot.idle {
+  background: rgba(20, 24, 35, 0.12);
+  border-color: rgba(20, 24, 35, 0.22);
+  box-shadow: 0 0 0 3px rgba(20, 24, 35, 0.06);
+}
+
+html[data-theme="anime"] .progress {
+  background: rgba(20, 24, 35, 0.06);
+  border-color: rgba(20, 24, 35, 0.12);
+}
+
+html[data-theme="anime"] .progress > div {
+  background: linear-gradient(90deg, rgba(255, 79, 163, 0.95), rgba(96, 165, 250, 0.9));
+}
+
+html[data-theme="anime"] .video,
+html[data-theme="anime"] .img {
+  border-color: rgba(20, 24, 35, 0.12);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 18px 45px rgba(29, 33, 52, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="anime"] .btn,
+  html[data-theme="anime"] .segitem {
+    transition: none;
+  }
+
+  html[data-theme="anime"] .btn::after {
+    display: none;
+  }
+}

@@ -6,9 +6,11 @@ import { I18nProvider } from "@/components/I18nProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthWidget } from "@/components/AuthWidget";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getMessages, isRtl, resolveLocale, t as translate } from "@/i18n";
 
 import "./globals.css";
+import "./anime.css";
 
 export const metadata: Metadata = {
   title: "AutoSedance",
@@ -16,13 +18,16 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieLocale = cookies().get("autos_lang")?.value || null;
+  const ck = cookies();
+  const cookieLocale = ck.get("autos_lang")?.value || null;
+  const cookieTheme = ck.get("autos_theme")?.value || null;
   const acceptLanguage = headers().get("accept-language");
   const locale = resolveLocale({ cookieLocale, acceptLanguage });
   const messages = getMessages(locale);
+  const theme = cookieTheme === "anime" ? "anime" : "default";
 
   return (
-    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"}>
+    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} data-theme={theme}>
       <body>
         <I18nProvider initialLocale={locale}>
           <AuthProvider>
@@ -45,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link className="btn primary" href="/new">
                       {translate(messages, "topbar.new_project")}
                     </Link>
+                    <ThemeToggle initialTheme={theme} />
                     <AuthWidget />
                     <LanguageSwitcher />
                   </div>
