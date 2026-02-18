@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
+import Script from "next/script";
 
 import { I18nProvider } from "@/components/I18nProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -24,11 +25,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const acceptLanguage = headers().get("accept-language");
   const locale = resolveLocale({ cookieLocale, acceptLanguage });
   const messages = getMessages(locale);
-  const theme = cookieTheme === "anime" ? "anime" : "default";
+  const theme: "light" | "dark" | "system" = (() => {
+    // Backward compatibility:
+    // - old: "anime" -> light
+    // - old: "default" -> dark
+    if (cookieTheme === "light" || cookieTheme === "anime") return "light";
+    if (cookieTheme === "dark" || cookieTheme === "default") return "dark";
+    return "system";
+  })();
 
   return (
-    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} data-theme={theme}>
+    <html lang={locale} dir={isRtl(locale) ? "rtl" : "ltr"} data-theme={theme} suppressHydrationWarning>
       <body>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function(){try{var d=document.documentElement;var t=d&&d.dataset?d.dataset.theme:null;if(t&&t!=="system")return;var m=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;d.dataset.theme=(m&&m.matches)?"dark":"light";}catch(e){}})();`}
+        </Script>
         <I18nProvider initialLocale={locale}>
           <AuthProvider>
             <div className="topbar">

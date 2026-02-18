@@ -3,6 +3,10 @@
   "topbar.new_project": "Nuevo proyecto",
   "topbar.invites": "Invitaciones",
   "topbar.translations": "Traducciones",
+  "theme.light": "Claro",
+  "theme.dark": "Oscuro",
+  "theme.to_light": "Cambiar a modo claro",
+  "theme.to_dark": "Cambiar a modo oscuro",
 
   "common.refresh": "Actualizar",
   "common.new": "Nuevo",

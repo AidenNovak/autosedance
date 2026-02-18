@@ -3,6 +3,10 @@
   "topbar.new_project": "مشروع جديد",
   "topbar.invites": "دعوات",
   "topbar.translations": "الترجمات",
+  "theme.light": "فاتح",
+  "theme.dark": "داكن",
+  "theme.to_light": "التبديل إلى الوضع الفاتح",
+  "theme.to_dark": "التبديل إلى الوضع الداكن",
 
   "common.refresh": "تحديث",
   "common.new": "جديد",

@@ -3,6 +3,10 @@
   "topbar.new_project": "新建项目",
   "topbar.invites": "邀请码",
   "topbar.translations": "翻译表",
+  "theme.light": "明亮",
+  "theme.dark": "暗黑",
+  "theme.to_light": "切换到明亮模式",
+  "theme.to_dark": "切换到暗黑模式",
 
   "common.refresh": "刷新",
   "common.new": "新建",

@@ -3,6 +3,10 @@
   "topbar.new_project": "新規プロジェクト",
   "topbar.invites": "招待コード",
   "topbar.translations": "翻訳表",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
+  "theme.to_light": "ライトモードに切り替え",
+  "theme.to_dark": "ダークモードに切り替え",
 
   "common.refresh": "更新",
   "common.new": "新規",
