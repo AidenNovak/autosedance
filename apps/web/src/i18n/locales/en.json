@@ -16,6 +16,10 @@
   "common.request_failed": "Request failed",
   "common.save": "Save",
   "common.saving": "Saving…",
+  "common.copy": "Copy",
+  "common.copied": "Copied",
+  "common.reset": "Reset",
+  "common.unsaved": "Unsaved",
   "common.generate": "Generate",
   "common.regenerate": "Regenerate",
   "common.generating": "Generating…",
@@ -203,6 +207,7 @@
 
   "project.analyze": "Analyze (inNB)",
   "project.analyzing": "Analyzing…",
+  "project.analysis.title": "Analysis",
   "project.analysis.none": "No analysis yet.",
 
   "project.in0.generate_first_title": "Generate in0 first",

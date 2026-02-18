@@ -14,7 +14,7 @@ from ..clients.doubao import DoubaoClient
 from ..nodes.scriptwriter import scriptwriter_node
 from ..nodes.segmenter import segmenter_node
 from ..prompts.loader import get_analyzer_prompts
-from ..utils.canon import format_canon_summary
+from ..utils.canon import canon_compact_description, format_canon_summary
 from ..utils.video import concatenate_videos, extract_last_frame
 from .db import get_engine
 from .models import Job, Project, Segment
@@ -419,7 +419,8 @@ def _run_analyze_job(session: Session, job: Job) -> dict:
     seg.updated_at = now_utc()
     session.add(seg)
 
-    summary = format_canon_summary(idx, start, end, description)
+    canon_text = canon_compact_description(description, max_chars=240)
+    summary = format_canon_summary(idx, start, end, canon_text)
     project.canon_summaries = append_canon(project.canon_summaries or "", summary)
     project.last_frame_path = seg.last_frame_path
     project.current_segment_index = idx + 1

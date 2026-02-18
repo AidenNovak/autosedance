@@ -8,6 +8,7 @@ Escribe un guion completo con una duración total de {total_duration} segundos, 
 2. Storyboard detallado: cada segmento incluye 3-5 planos concretos (visual + acción).
 3. Tensión emocional: transmitir emociones a través de las imágenes y su progresión.
 4. Continuidad de fotogramas: la imagen final de cada segmento debe conectar naturalmente con el siguiente.
+5. Continuidad musical (crítico): define UNA identidad musical coherente para todo el video (género, motivo principal, tempo/BPM, instrumentación base, centro tonal). Entre segmentos debe sentirse como la misma pista; solo varía intensidad, capas y arreglo. Evita cambios bruscos de estilo/tempo/instrumentos. Las transiciones deben ser suaves (p. ej., crossfade, riser, relleno de batería) y motivadas por la historia.
 
 ## Formato de salida (seguir estrictamente)
 
@@ -20,6 +21,15 @@ Escribe un guion completo con una duración total de {total_duration} segundos, 
 
 [Tono y estilo] estilo visual, tono emocional
 
+[Música] (dirección musical global; debe mantenerse consistente en todos los segmentos)
+- Género / vibra:
+- Tempo (BPM) / ritmo:
+- Tonalidad / centro tonal:
+- Motivo principal (descríbelo con palabras):
+- Instrumentación base:
+- Mezcla / textura (limpia / áspera / aireada, etc.):
+- Reglas de continuidad (lo que NO debe cambiar):
+
 [Segmento 1] (0-{segment_duration}s)
 [Objetivo] qué propósito narrativo logra este segmento
 [Planos]
@@ -29,6 +39,7 @@ Escribe un guion completo con una duración total de {total_duration} segundos, 
   - Plano 4 (12-15s): ... (imagen final; debe enlazar con el siguiente)
 [Acción clave] el cambio/acción más importante del segmento
 [Curva emocional] inicio → desarrollo → cierre
+[Señal musical] qué hace la música en este segmento (debe seguir [Música]); especifica intensidad/capas y la transición al siguiente segmento
 [Ancla de continuidad] descripción de la imagen congelada de los últimos 1-2 segundos para que el siguiente segmento continúe
 
 [Segmento 2] ({segment_duration}-{segment_duration_mul2}s)
@@ -39,4 +50,3 @@ Notas:
 - Cada plano debe incluir visuales concretos, estado del personaje y lenguaje de cámara.
 - Las transiciones deben ser naturales; el último fotograma y el primero del siguiente deben conectar.
 - Sé específico sobre color, iluminación, expresión facial, movimiento y composición.
-

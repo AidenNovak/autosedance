@@ -10,4 +10,4 @@ Merci d’analyser cette capture (c’est la dernière image de la vidéo import
 1. Décris ce qui apparaît réellement dans l’image et compare avec le contenu attendu.
 2. Concentre-toi sur l’état de la dernière image afin que le segment suivant s’enchaîne sans coupe.
 3. Signale les éléments de continuité à garder cohérents.
-
+4. Inclue la continuité musicale et émet les lignes de marqueur requises à la fin.

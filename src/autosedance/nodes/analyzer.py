@@ -6,7 +6,7 @@ from ..clients.doubao import DoubaoClient
 from ..config import get_settings
 from ..prompts.loader import get_analyzer_prompts
 from ..state.schema import GraphState, SegmentRecord
-from ..utils.canon import append_canon, format_canon_summary
+from ..utils.canon import append_canon, canon_compact_description, format_canon_summary
 from ..utils.video import extract_last_frame
 
 
@@ -62,7 +62,8 @@ async def analyzer_node(state: GraphState) -> dict:
         return {"error": f"Video analysis failed: {str(e)}"}
 
     # 更新总结（添加分隔符便于滑动窗口处理）
-    new_summary = format_canon_summary(idx, start_time, end_time, description)
+    canon_text = canon_compact_description(description, max_chars=240)
+    new_summary = format_canon_summary(idx, start_time, end_time, canon_text)
     updated_canon = append_canon(state.get("canon_summaries") or "", new_summary)
 
     # 更新片段记录

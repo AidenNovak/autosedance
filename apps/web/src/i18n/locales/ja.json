@@ -16,6 +16,10 @@
   "common.request_failed": "リクエストに失敗しました",
   "common.save": "保存",
   "common.saving": "保存中…",
+  "common.copy": "コピー",
+  "common.copied": "コピーしました",
+  "common.reset": "リセット",
+  "common.unsaved": "未保存",
   "common.generate": "生成",
   "common.regenerate": "再生成",
   "common.generating": "生成中…",
@@ -204,6 +208,7 @@
 
   "project.analyze": "解析 (inNB)",
   "project.analyzing": "解析中…",
+  "project.analysis.title": "解析",
   "project.analysis.none": "まだ解析がありません。",
 
   "project.assemble.title": "結合",

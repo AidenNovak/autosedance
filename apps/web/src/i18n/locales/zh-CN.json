@@ -16,6 +16,10 @@
   "common.request_failed": "请求失败",
   "common.save": "保存",
   "common.saving": "保存中…",
+  "common.copy": "复制",
+  "common.copied": "已复制",
+  "common.reset": "重置",
+  "common.unsaved": "未保存",
   "common.generate": "生成",
   "common.regenerate": "重新生成",
   "common.generating": "生成中…",
@@ -204,6 +208,7 @@
 
   "project.analyze": "分析（inNB）",
   "project.analyzing": "分析中…",
+  "project.analysis.title": "分析结果",
   "project.analysis.none": "暂无分析结果。",
 
   "project.assemble.title": "拼接",

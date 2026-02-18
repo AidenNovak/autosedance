@@ -10,4 +10,4 @@ Por favor analiza esta captura del video (es el último fotograma del video subi
 1. Describe lo que realmente aparece en el fotograma y compáralo con lo esperado.
 2. Enfócate en el estado del fotograma final para que el siguiente segmento continúe sin cortes.
 3. Señala los elementos de continuidad que deben mantenerse consistentes.
-
+4. Incluye continuidad musical y emite las líneas de marcador requeridas al final.

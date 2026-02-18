@@ -208,6 +208,13 @@ export async function updateSegment(
   });
 }
 
+export async function updateSegmentAnalysis(projectId: string, index: number, video_description: string): Promise<ProjectDetail> {
+  return req<ProjectDetail>(`/api/projects/${projectId}/segments/${index}/analysis`, {
+    method: "PUT",
+    body: JSON.stringify({ video_description })
+  });
+}
+
 export async function uploadVideo(projectId: string, index: number, file: File): Promise<SegmentDetail> {
   const form = new FormData();
   form.append("file", file);

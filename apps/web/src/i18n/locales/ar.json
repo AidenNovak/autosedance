@@ -16,6 +16,10 @@
   "common.request_failed": "فشل الطلب",
   "common.save": "حفظ",
   "common.saving": "جارٍ الحفظ…",
+  "common.copy": "نسخ",
+  "common.copied": "تم النسخ",
+  "common.reset": "إعادة ضبط",
+  "common.unsaved": "غير محفوظ",
   "common.generate": "توليد",
   "common.regenerate": "إعادة التوليد",
   "common.generating": "جارٍ التوليد…",
@@ -204,6 +208,7 @@
 
   "project.analyze": "تحليل (inNB)",
   "project.analyzing": "جارٍ التحليل…",
+  "project.analysis.title": "التحليل",
   "project.analysis.none": "لا يوجد تحليل بعد.",
 
   "project.assemble.title": "تجميع",

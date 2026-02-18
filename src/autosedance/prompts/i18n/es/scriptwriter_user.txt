@@ -12,4 +12,4 @@ Recuerda:
 1. Cada segmento debe incluir descripciones concretas de planos.
 2. Cada segmento debe terminar con un ancla clara del último fotograma para continuidad.
 3. Mantén las descripciones específicas y accionables para la generación de video.
-
+4. Incluye una dirección musical consistente (global + por segmento) y mantén la música continua entre segmentos (mismo motivo/tempo/instrumentación; solo evoluciona intensidad/capas).

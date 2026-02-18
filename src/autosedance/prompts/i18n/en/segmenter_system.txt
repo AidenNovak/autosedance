@@ -27,6 +27,12 @@ Generate a high-quality video generation prompt. It must include:
    - If continuity summaries or a reference frame exist, you must continue from them.
    - The ending frame must be explicit to prepare the next segment.
 
+5. Music continuity (critical):
+   - Preserve ONE coherent music identity across segments (same genre/motif/BPM/core instrumentation).
+   - Only vary intensity, layering, and arrangement; avoid abrupt changes.
+   - Make the music transition into the next segment explicit (smooth, motivated).
+   - Include a clear "MUSIC:" description inside the video_prompt and continuity_notes.
+
 ## Output Format (JSON)
 ```json
 {{
@@ -34,9 +40,8 @@ Generate a high-quality video generation prompt. It must include:
   "video_prompt": "Video generation prompt (for the video model). Include: subject + environment + action + camera + style. 200-300 words.",
   "start_frame_description": "Opening frame description to ensure continuity",
   "end_frame_description": "Ending frame description that the next segment must continue",
-  "continuity_notes": "Continuity notes: character state, positions, props, etc."
+  "continuity_notes": "Continuity notes: character state, positions, props, music, etc."
 }}
 ```
 
 Note: The video_prompt must be concrete and visual, not abstract.
-

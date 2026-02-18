@@ -10,4 +10,4 @@ Please analyze this video screenshot (it is the last frame of the uploaded video
 1. Describe what is actually in the frame and compare it with the expected content.
 2. Focus on the ending-frame state so the next segment can continue seamlessly.
 3. Call out continuity elements that must be kept consistent.
-
+4. Include music continuity notes and output the required marker lines at the end.

@@ -15,6 +15,6 @@
 2. Si hay resúmenes de continuidad, debes continuar el último fotograma y el estado de los personajes.
 3. Mantén el prompt concreto, visual y con lenguaje de cámara; evita lo abstracto.
 4. Haz explícito el fotograma final para que el siguiente segmento continúe sin cortes.
+5. Los resúmenes pueden incluir pistas de MUSIC; mantén la música continua entre segmentos (mismo motivo/tempo/instrumentación; solo cambia intensidad/capas) y describe la transición.
 
 Por favor genera el JSON para este segmento.
-

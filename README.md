@@ -32,6 +32,20 @@ Notes / 说明:
 3. 系统理解视频内容并将连续性传递给下一个片段。
 4. 循环直到完成，最后自动拼接输出成片。
 
+Continuity includes **music** now: the prompts keep one coherent music identity across segments; the analyzer emits marker lines (`[[MUSIC_STATE]]` / `[[CANON_SUMMARY]]`) so the next segment can follow the same track.
+
+连续性现在包含**音乐**：提示词会让全片保持统一的音乐身份；视频理解会输出标记行（`[[MUSIC_STATE]]` / `[[CANON_SUMMARY]]`）用于后续片段延续同一首音乐。
+
+## Editing & Copy / 编辑与复制
+
+- Full script (in0), segment script + video prompt (inN), and analysis (inNB) are editable and saveable.
+- Analysis is collapsed by default to avoid overly long pages.
+- Copy buttons are available for full script, continuity context, segment script/prompt, and analysis.
+
+- in0 全局剧本、inN 片段剧本+Prompt、inNB 分析结果均可编辑并保存。
+- 分析结果默认折叠，避免页面过长。
+- 提供复制按钮：全局剧本、连续性上下文、片段剧本/Prompt、分析结果。
+
 ## Local Development / 本地运行
 
 ### 1) Backend API / 后端 API
@@ -42,9 +56,9 @@ cp .env.example .env
 # - VOLCENGINE_API_KEY
 # - AUTH_SECRET_KEY (recommended)
 
-uv pip install -e .
+uv pip install -e '.[dev]'
 # or:
-# pip install -e .
+# python3 -m pip install -e '.[dev]'
 autosedance server --reload
 ```
 
@@ -59,6 +73,14 @@ npm run dev
 ```
 
 Open `http://localhost:3612`.
+
+## Tests / 测试
+
+```bash
+python3 scripts/i18n_check.py
+python3 -m pytest
+npm -C apps/web run test:e2e
+```
 
 ## Login / 登录
 

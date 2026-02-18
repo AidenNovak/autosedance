@@ -15,6 +15,7 @@ import {
   getSegment,
   updateFullScript,
   updateSegment,
+  updateSegmentAnalysis,
   uploadVideo
 } from "@/lib/api";
 import { humanizeError } from "@/lib/errors";
@@ -34,6 +35,56 @@ function pad3Display(index0: number) {
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function extractMarkerLine(text: string, marker: string): string | null {
+  const raw = (text || "").trim();
+  if (!raw) return null;
+  const m = (marker || "").trim();
+  if (!m) return null;
+
+  const lines = raw.split(/\r?\n/);
+  for (const line of lines) {
+    const l = (line || "").trim();
+    if (!l) continue;
+    if (l.startsWith(m)) {
+      let out = l.slice(m.length).trim();
+      if (out.startsWith(":")) out = out.slice(1).trim();
+      return out || null;
+    }
+  }
+  for (const line of lines) {
+    const l = (line || "").trim();
+    if (!l) continue;
+    const pos = l.indexOf(m);
+    if (pos < 0) continue;
+    let out = l.slice(pos + m.length).trim();
+    if (out.startsWith(":")) out = out.slice(1).trim();
+    return out || null;
+  }
+  return null;
 }
 
 const TERMINAL_JOB_STATUSES = new Set<Job["status"]>(["succeeded", "failed", "canceled"]);
@@ -82,7 +133,9 @@ export default function ProjectPage() {
   const [fullDraft, setFullDraft] = useState("");
   const [segScriptDraft, setSegScriptDraft] = useState("");
   const [segPromptDraft, setSegPromptDraft] = useState("");
+  const [analysisDraft, setAnalysisDraft] = useState("");
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const jobRunning = !!activeJob && !TERMINAL_JOB_STATUSES.has(activeJob.status);
   const locked = !!busy || jobRunning;
@@ -112,6 +165,7 @@ export default function ProjectPage() {
       setSegment(s);
       setSegScriptDraft(s.segment_script || "");
       setSegPromptDraft(s.video_prompt || "");
+      setAnalysisDraft(s.video_description || "");
       setUploadWarnings((s.warnings || []).filter((w): w is string => typeof w === "string" && w.length > 0));
       return s;
     } finally {
@@ -261,6 +315,35 @@ export default function ProjectPage() {
       .filter(Boolean)
       .join("\n---\n");
   }, [project?.canon_summaries]);
+
+  const analysisSummary = useMemo(() => {
+    const raw = (segment?.video_description || "").trim();
+    if (!raw) return "";
+    const picked =
+      extractMarkerLine(raw, "[[MUSIC_STATE]]") ||
+      extractMarkerLine(raw, "[[CANON_SUMMARY]]") ||
+      raw.split(/\r?\n/).map((l) => (l || "").trim()).find(Boolean) ||
+      "";
+    const oneLine = String(picked || "").replace(/\s+/g, " ").trim();
+    if (!oneLine) return "";
+    return oneLine.length > 96 ? oneLine.slice(0, 95).trim() + "…" : oneLine;
+  }, [segment?.video_description]);
+
+  const fullDirty = fullDraft !== (project?.full_script || "");
+  const segScriptDirty = segScriptDraft !== (segment?.segment_script || "");
+  const segPromptDirty = segPromptDraft !== (segment?.video_prompt || "");
+  const analysisDirty = analysisDraft !== (segment?.video_description || "");
+  const hasUnsaved = fullDirty || segScriptDirty || segPromptDirty || analysisDirty;
+
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsaved]);
 
   if (authLoading && !me) {
     return (
@@ -467,6 +550,7 @@ export default function ProjectPage() {
             <div className="hd">
               <h2>{t("project.in0.title")}</h2>
               <div className="row">
+                {fullDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
                 <button
                   className="btn primary"
                   onClick={() =>
@@ -489,6 +573,17 @@ export default function ProjectPage() {
                     : project.full_script
                       ? t("common.regenerate")
                       : t("common.generate")}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const ok = await copyText(fullDraft);
+                    setCopied(ok ? "full" : null);
+                    setTimeout(() => setCopied(null), 1500);
+                  }}
+                  disabled={!fullDraft.trim()}
+                >
+                  {copied === "full" ? t("common.copied") : t("common.copy")}
                 </button>
                 <button
                   className="btn"
@@ -532,7 +627,21 @@ export default function ProjectPage() {
           <div className="card">
             <div className="hd">
               <h2>{t("project.continuity.title")}</h2>
-              <span className="pill">{t("project.continuity.last3")}</span>
+              <div className="row" style={{ justifyContent: "flex-end" }}>
+                <span className="pill">{t("project.continuity.last3")}</span>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={async () => {
+                    const ok = await copyText(canonDisplay);
+                    setCopied(ok ? "canon" : null);
+                    setTimeout(() => setCopied(null), 1500);
+                  }}
+                  disabled={!canonDisplay.trim()}
+                >
+                  {copied === "canon" ? t("common.copied") : t("common.copy")}
+                </button>
+              </div>
             </div>
             <div className="bd">
               <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--muted)", fontSize: 12, lineHeight: 1.55 }}>
@@ -573,6 +682,7 @@ export default function ProjectPage() {
                 </div>
 
                 <div className="row">
+                  {segScriptDirty || segPromptDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
                   <button
                     className="btn primary"
                     onClick={() =>
@@ -623,7 +733,21 @@ export default function ProjectPage() {
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">{t("project.segment.script_label")}</div>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div className="muted">{t("project.segment.script_label")}</div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={async () => {
+                      const ok = await copyText(segScriptDraft);
+                      setCopied(ok ? "seg_script" : null);
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                    disabled={!segScriptDraft.trim()}
+                  >
+                    {copied === "seg_script" ? t("common.copied") : t("common.copy")}
+                  </button>
+                </div>
                 <textarea
                   className="textarea"
                   value={segScriptDraft}
@@ -633,7 +757,21 @@ export default function ProjectPage() {
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div className="muted">{t("project.segment.prompt_label")}</div>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div className="muted">{t("project.segment.prompt_label")}</div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={async () => {
+                      const ok = await copyText(segPromptDraft);
+                      setCopied(ok ? "seg_prompt" : null);
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                    disabled={!segPromptDraft.trim()}
+                  >
+                    {copied === "seg_prompt" ? t("common.copied") : t("common.copy")}
+                  </button>
+                </div>
                 <textarea
                   className="textarea"
                   value={segPromptDraft}
@@ -758,13 +896,75 @@ export default function ProjectPage() {
 
               {frameSrc ? <img className="img" src={frameSrc} alt={t("project.frame.alt")} /> : null}
 
-              {segment?.video_description ? (
-                <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "var(--text)", fontSize: 12, lineHeight: 1.55 }}>
-                  {segment.video_description}
-                </pre>
-              ) : (
-                <div className="muted">{t("project.analysis.none")}</div>
-              )}
+              <details className="details-clean">
+                <summary className="row" style={{ justifyContent: "space-between", gap: 12 }}>
+                  <div className="row" style={{ gap: 8, minWidth: 0 }}>
+                    <span className="pill">{t("project.analysis.title")}</span>
+                    <span
+                      className="muted"
+                      style={{
+                        fontSize: 12,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "60ch"
+                      }}
+                      title={analysisSummary || undefined}
+                    >
+                      {analysisSummary || t("project.analysis.none")}
+                    </span>
+                  </div>
+                  {analysisDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
+                </summary>
+
+                <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                  <textarea
+                    className="textarea"
+                    value={analysisDraft}
+                    onChange={(e) => setAnalysisDraft(e.target.value)}
+                    disabled={locked || loadingSegment}
+                    placeholder={t("project.analysis.none")}
+                    style={{ minHeight: 180, maxHeight: 280, overflow: "auto" }}
+                  />
+
+                  <div className="row" style={{ justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const ok = await copyText(analysisDraft);
+                        setCopied(ok ? "analysis" : null);
+                        setTimeout(() => setCopied(null), 1500);
+                      }}
+                      disabled={!analysisDraft.trim()}
+                    >
+                      {copied === "analysis" ? t("common.copied") : t("common.copy")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setAnalysisDraft(segment?.video_description || "")}
+                      disabled={!analysisDirty}
+                    >
+                      {t("common.reset")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() =>
+                        run("analysis_save", async () => {
+                          const p = await updateSegmentAnalysis(projectId, selectedIndex, analysisDraft);
+                          setProject(p);
+                          await refreshSegment(selectedIndex);
+                        })
+                      }
+                      disabled={locked || !analysisDirty}
+                    >
+                      {busy === "analysis_save" ? t("common.saving") : t("common.save")}
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
         </div>

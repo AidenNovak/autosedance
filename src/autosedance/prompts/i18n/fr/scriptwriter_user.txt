@@ -12,4 +12,4 @@ Rappels :
 1. Chaque segment doit contenir des descriptions de plans concrètes.
 2. Chaque segment doit se terminer par une ancre claire de la dernière image pour la continuité.
 3. Garde des descriptions spécifiques et actionnables pour la génération vidéo.
-
+4. Inclue une direction musicale cohérente (globale + par segment) et garde la musique continue entre segments (même motif/tempo/instrumentation ; seule l’intensité/couches évoluent).

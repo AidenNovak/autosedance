@@ -15,6 +15,6 @@
 2. If continuity summaries are present, you must continue the last ending frame and character states.
 3. Keep the prompt concrete, visual, and camera-aware; avoid abstract wording.
 4. Make the ending frame explicit so the next segment can continue seamlessly.
+5. Continuity summaries may include MUSIC cues; keep the music continuous across segments (same motif/tempo/instrumentation; only intensity/layering evolves) and describe the transition.
 
 Please generate the JSON for this segment.
-

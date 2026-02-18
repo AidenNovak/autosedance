@@ -16,6 +16,10 @@
   "common.request_failed": "La requête a échoué",
   "common.save": "Enregistrer",
   "common.saving": "Enregistrement…",
+  "common.copy": "Copier",
+  "common.copied": "Copié",
+  "common.reset": "Réinitialiser",
+  "common.unsaved": "Non enregistré",
   "common.generate": "Générer",
   "common.regenerate": "Régénérer",
   "common.generating": "Génération…",
@@ -204,6 +208,7 @@
 
   "project.analyze": "Analyser (inNB)",
   "project.analyzing": "Analyse…",
+  "project.analysis.title": "Analyse",
   "project.analysis.none": "Aucune analyse pour l’instant.",
 
   "project.assemble.title": "Assembler",

@@ -12,4 +12,4 @@ Remember:
 1. Each segment must include concrete shot descriptions.
 2. Each segment must end with a clear last-frame anchor for continuity.
 3. Keep descriptions specific and actionable for later video generation.
-
+4. Include a consistent music direction (global + per-segment cues) and keep the music continuous across segments (same motif/tempo/instrumentation; only intensity/layering may evolve).

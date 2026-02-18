@@ -13,14 +13,20 @@ from ...clients.doubao import DoubaoClient
 from ...config import get_settings
 from ...nodes.segmenter import segmenter_node
 from ...prompts.loader import get_analyzer_prompts
-from ...utils.canon import format_canon_summary
+from ...utils.canon import canon_compact_description, format_canon_summary, replace_canon_item
 from ...utils.video import extract_last_frame, validate_video_file
 from ..auth import AuthUser, require_read_user, require_user
 from ..authz import require_project_owner
 from ..db import get_session
 from ..models import Project, Segment
 from ..routes.common import project_to_detail_out, segment_to_detail_out
-from ..schemas import GenerateWithFeedbackIn, ProjectDetailOut, SegmentDetailOut, UpdateSegmentIn
+from ..schemas import (
+    GenerateWithFeedbackIn,
+    ProjectDetailOut,
+    SegmentDetailOut,
+    UpdateSegmentAnalysisIn,
+    UpdateSegmentIn,
+)
 from ..storage import (
     atomic_write_text,
     frame_path,
@@ -190,6 +196,41 @@ def update_segment(
     session.refresh(project)
 
     atomic_write_text(segment_txt_path(project_id, index), export_segment_text(project, seg))
+
+    segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
+    return project_to_detail_out(project, segs)
+
+
+@router.put("/{project_id}/segments/{index}/analysis", response_model=ProjectDetailOut)
+def update_segment_analysis(
+    project_id: str,
+    index: int,
+    payload: UpdateSegmentAnalysisIn,
+    user: AuthUser = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> ProjectDetailOut:
+    require_project_owner(session, project_id, user.user_id)
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    seg = _get_segment(session, project_id, index)
+    if seg is None:
+        raise HTTPException(status_code=400, detail="Segment not found; generate it first")
+
+    seg.video_description = payload.video_description
+    seg.updated_at = now_utc()
+    session.add(seg)
+
+    start, end = time_range(project, index)
+    canon_text = canon_compact_description(payload.video_description, max_chars=240)
+    summary = format_canon_summary(index, start, end, canon_text)
+    project.canon_summaries = replace_canon_item(project.canon_summaries or "", index, summary)
+    project.updated_at = now_utc()
+    session.add(project)
+
+    session.commit()
+    session.refresh(project)
 
     segs = session.exec(select(Segment).where(Segment.project_id == project_id)).all()
     return project_to_detail_out(project, segs)
@@ -453,7 +494,8 @@ def analyze_segment(
     seg.updated_at = now_utc()
     session.add(seg)
 
-    summary = format_canon_summary(index, start, end, description)
+    canon_text = canon_compact_description(description, max_chars=240)
+    summary = format_canon_summary(index, start, end, canon_text)
     project.canon_summaries = append_canon(project.canon_summaries or "", summary)
     project.last_frame_path = seg.last_frame_path
     project.current_segment_index = index + 1

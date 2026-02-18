@@ -42,6 +42,10 @@ class UpdateSegmentIn(BaseModel):
     invalidate_downstream: bool = True
 
 
+class UpdateSegmentAnalysisIn(BaseModel):
+    video_description: str
+
+
 class SegmentSummaryOut(BaseModel):
     index: int
     status: str

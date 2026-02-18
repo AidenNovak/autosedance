@@ -27,6 +27,12 @@ Genera un prompt de alta calidad para generación de video. Debe incluir:
    - Si hay resúmenes de continuidad o un fotograma de referencia, debes continuar desde ellos.
    - El fotograma final debe ser explícito para preparar el siguiente segmento.
 
+5. Continuidad musical (crítico):
+   - Conserva UNA identidad musical coherente entre segmentos (mismo género/motivo/BPM/instrumentación base).
+   - Solo varía intensidad, capas y arreglo; evita cambios bruscos.
+   - Haz explícita la transición musical al siguiente segmento (suave y motivada).
+   - Incluye una descripción clara "MUSIC:" dentro de video_prompt y continuity_notes.
+
 ## Formato de salida (JSON)
 ```json
 {{
@@ -34,9 +40,8 @@ Genera un prompt de alta calidad para generación de video. Debe incluir:
   "video_prompt": "Prompt de generación de video (para el modelo). Incluye: sujeto + entorno + acción + cámara + estilo. 200-300 palabras.",
   "start_frame_description": "Descripción del fotograma inicial para asegurar continuidad",
   "end_frame_description": "Descripción del fotograma final que el siguiente segmento debe continuar",
-  "continuity_notes": "Notas de continuidad: estado del personaje, posiciones, utilería, etc."
+  "continuity_notes": "Notas de continuidad: estado del personaje, posiciones, utilería, música, etc."
 }}
 ```
 
 Nota: el video_prompt debe ser concreto y visual, no abstracto.
-

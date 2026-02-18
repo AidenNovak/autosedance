@@ -260,6 +260,15 @@ pre {
   display: none;
 }
 
+.details-clean > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.details-clean > summary::-webkit-details-marker {
+  display: none;
+}
+
 .auth-panel {
   position: absolute;
   inset-inline-end: 0;

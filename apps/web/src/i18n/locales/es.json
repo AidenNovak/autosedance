@@ -16,6 +16,10 @@
   "common.request_failed": "La solicitud falló",
   "common.save": "Guardar",
   "common.saving": "Guardando…",
+  "common.copy": "Copiar",
+  "common.copied": "Copiado",
+  "common.reset": "Restablecer",
+  "common.unsaved": "Sin guardar",
   "common.generate": "Generar",
   "common.regenerate": "Regenerar",
   "common.generating": "Generando…",
@@ -204,6 +208,7 @@
 
   "project.analyze": "Analizar (inNB)",
   "project.analyzing": "Analizando…",
+  "project.analysis.title": "Análisis",
   "project.analysis.none": "Aún no hay análisis.",
 
   "project.assemble.title": "Unir",

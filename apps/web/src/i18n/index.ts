@@ -22,7 +22,10 @@ const ALL_MESSAGES: Record<Locale, Messages> = {
 };
 
 export function isRtl(locale: Locale): boolean {
-  return locale === "ar";
+  // Keep the overall layout LTR even for RTL languages for now.
+  // Setting <html dir="rtl"> reverses the whole UI and breaks some layout assumptions.
+  void locale;
+  return false;
 }
 
 export function normalizeLocale(input?: string | null): Locale {
@@ -89,4 +92,3 @@ export function t(
     return String(v);
   });
 }
-

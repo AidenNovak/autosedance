@@ -15,6 +15,6 @@
 2. S’il y a des résumés de continuité, tu dois continuer la dernière image et l’état des personnages.
 3. Garde le prompt concret, visuel, et orienté caméra ; évite l’abstrait.
 4. Rends l’image de fin explicite pour que le segment suivant s’enchaîne sans coupe.
+5. Les résumés peuvent contenir des indications MUSIC ; garde la musique continue entre segments (même motif/tempo/instrumentation ; seule l’intensité/couches évoluent) et décris la transition.
 
 Merci de générer le JSON pour ce segment.
-

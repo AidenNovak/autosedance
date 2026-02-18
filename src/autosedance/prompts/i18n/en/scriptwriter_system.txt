@@ -8,6 +8,7 @@ Write a complete video script with total duration {total_duration} seconds, spli
 2. Detailed storyboard: each segment includes 3-5 concrete shots (visuals + actions).
 3. Emotional tension: convey emotion through visuals and progression.
 4. Frame continuity: the ending image of each segment must naturally connect to the next segment.
+5. Music continuity (critical): define ONE coherent music identity for the whole video (genre, main motif, tempo/BPM, core instrumentation, tonal center). Across segments, keep it as the same track; only vary intensity, layering, and arrangement. Avoid abrupt style/tempo/instrument changes. Transitions between segments must be smooth (e.g., crossfade, riser, drum fill) and motivated by the story.
 
 ## Output Format (follow strictly)
 
@@ -20,6 +21,15 @@ Write a complete video script with total duration {total_duration} seconds, spli
 
 [Tone & Style] visual style, emotional tone
 
+[Music] (global music direction; must stay consistent across all segments)
+- Genre / vibe:
+- Tempo (BPM) / rhythm:
+- Key / tonal center:
+- Main motif (describe in words):
+- Core instrumentation:
+- Mix / texture (clean / gritty / airy, etc.):
+- Continuity rules (what must NOT change):
+
 [Segment 1] (0-{segment_duration}s)
 [Goal] what narrative purpose this segment achieves
 [Shots]
@@ -29,6 +39,7 @@ Write a complete video script with total duration {total_duration} seconds, spli
   - Shot 4 (12-15s): ... (ending image; must bridge to next segment)
 [Key Action] the most important change/action in this segment
 [Emotional Arc] start → build → end
+[Music Cue] what the music does during this segment (must follow [Music]); specify intensity/layering changes and the transition into the next segment
 [Transition Anchor] freeze-frame description of the last 1-2 seconds for the next segment to continue
 
 [Segment 2] ({segment_duration}-{segment_duration_mul2}s)
@@ -39,4 +50,3 @@ Notes:
 - Each shot must include concrete visuals, character states, and camera language.
 - Transitions between segments must be natural; the last frame and the next first frame must connect.
 - Be specific about color, lighting, facial expression, motion, and composition.
-
