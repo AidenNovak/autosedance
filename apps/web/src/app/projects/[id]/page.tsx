@@ -120,6 +120,7 @@ const GUIDE_IDS = {
 } as const;
 
 type GuideId = (typeof GUIDE_IDS)[keyof typeof GUIDE_IDS];
+const JIMENG_URL = process.env.NEXT_PUBLIC_JIMENG_URL || "https://jimeng.jianying.com/";
 
 export default function ProjectPage() {
   const { t, locale } = useI18n();
@@ -349,6 +350,7 @@ export default function ProjectPage() {
   const segPromptDirty = segPromptDraft !== (segment?.video_prompt || "");
   const analysisDirty = analysisDraft !== (segment?.video_description || "");
   const hasUnsaved = fullDirty || segScriptDirty || segPromptDirty || analysisDirty;
+  const showJimengGuide = !!segPromptDraft.trim() && !segment?.video_url;
   const isEditingRef = useRef(false);
 
   const activeGuideId: GuideId | null = useMemo(() => {
@@ -532,7 +534,9 @@ export default function ProjectPage() {
         <div className="bd" style={{ display: "grid", gap: 12 }}>
             <div style={{ display: "grid", gap: 10 }} data-guide-id={GUIDE_IDS.nextPill}>
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="pill next-action-pill">{trNext(project.next_action)}</span>
+                <span className="pill next-action-pill">
+                  {t("guide.next_action_prefix")} · {trNext(project.next_action)}
+                </span>
                 <span className="pill">
                   {t("project.current", {
                     current:
@@ -861,6 +865,44 @@ export default function ProjectPage() {
                   disabled={locked}
                 />
               </div>
+
+              {showJimengGuide ? (
+                <div className="guide-banner guide-banner-active">
+                  <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                    <div className="guide-banner-title">{t("guide.jimeng.title", { n: pad3Display(selectedIndex) })}</div>
+                    <div className="muted" style={{ lineHeight: 1.45 }}>
+                      {t("guide.jimeng.body")}
+                    </div>
+                  </div>
+                  <div className="row" style={{ justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const ok = await copyText(segPromptDraft);
+                        setCopied(ok ? "jimeng_copy" : null);
+                        setTimeout(() => setCopied(null), 1500);
+                      }}
+                      disabled={!segPromptDraft.trim()}
+                    >
+                      {copied === "jimeng_copy" ? t("common.copied") : t("guide.jimeng.copy_prompt")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn primary${activeGuideId === GUIDE_IDS.upload ? " guide-pulse-strong" : ""}`}
+                      onClick={async () => {
+                        const ok = await copyText(segPromptDraft);
+                        setCopied(ok ? "jimeng_open" : null);
+                        setTimeout(() => setCopied(null), 1500);
+                        window.open(JIMENG_URL, "_blank", "noopener,noreferrer");
+                      }}
+                      disabled={!segPromptDraft.trim()}
+                    >
+                      {copied === "jimeng_open" ? t("common.copied") : t("guide.jimeng.copy_open")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>

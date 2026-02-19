@@ -505,6 +505,8 @@ pre {
 .next-action-pill {
   border-color: rgba(251, 191, 36, 0.34);
   color: rgba(251, 191, 36, 0.95);
+  background: rgba(251, 191, 36, 0.12);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.22) inset;
 }
 
 .more-actions > summary {
@@ -516,19 +518,51 @@ pre {
 }
 
 .guide-pulse {
-  animation: guidePulse 2.2s ease-in-out infinite;
+  animation: guidePulse 1.8s ease-in-out infinite;
+}
+
+.guide-pulse-strong {
+  animation: guidePulseStrong 1.4s ease-in-out infinite;
 }
 
 @keyframes guidePulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.35);
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 12px rgba(251, 191, 36, 0);
+    box-shadow: 0 0 0 16px rgba(251, 191, 36, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
   }
+}
+
+@keyframes guidePulseStrong {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.58);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.guide-banner {
+  border: 1px dashed rgba(251, 191, 36, 0.44);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.guide-banner-active {
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.26) inset;
+}
+
+.guide-banner-title {
+  font-weight: 650;
+  font-size: 13px;
 }
 
 .tour-backdrop {
@@ -589,6 +623,7 @@ pre {
 
 @media (prefers-reduced-motion: reduce) {
   .guide-pulse,
+  .guide-pulse-strong,
   .tour-spotlight {
     animation: none !important;
   }

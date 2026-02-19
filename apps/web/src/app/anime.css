@@ -231,11 +231,16 @@ html[data-theme="light"] .stage-done {
 html[data-theme="light"] .next-action-pill {
   border-color: rgba(255, 79, 163, 0.32);
   color: rgba(255, 79, 163, 0.95);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 79, 163, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 79, 163, 0.2) inset;
 }
 
 html[data-theme="light"] .guide-pulse {
   animation-name: guidePulseLight;
+}
+
+html[data-theme="light"] .guide-pulse-strong {
+  animation-name: guidePulseStrongLight;
 }
 
 @keyframes guidePulseLight {
@@ -248,6 +253,27 @@ html[data-theme="light"] .guide-pulse {
   100% {
     box-shadow: 0 0 0 0 rgba(255, 79, 163, 0);
   }
+}
+
+@keyframes guidePulseStrongLight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 79, 163, 0.58);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(255, 79, 163, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 79, 163, 0);
+  }
+}
+
+html[data-theme="light"] .guide-banner {
+  border-color: rgba(255, 79, 163, 0.42);
+  background: rgba(255, 79, 163, 0.1);
+}
+
+html[data-theme="light"] .guide-banner-active {
+  box-shadow: 0 0 0 1px rgba(255, 79, 163, 0.2) inset;
 }
 
 html[data-theme="light"] .tour-backdrop {
