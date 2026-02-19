@@ -49,8 +49,23 @@ def input_video_path(project_id: str, index: int, original_filename: Optional[st
     return root / f"segment_{index:03d}{suffix}"
 
 
-def frame_path(project_id: str, index: int, ext: str = ".jpg") -> Path:
-    return ensure_project_dirs(project_id) / "frames" / f"frame_{index:03d}{ext}"
+def project_short_id(project_id: str) -> str:
+    # Keep only alnum chars for filesystem safety and stable naming.
+    compact = "".join(ch for ch in project_id if ch.isalnum()).lower()
+    if not compact:
+        compact = "project"
+    return compact[:8].ljust(8, "0")
+
+
+def frame_basename(project_id: str, index: int, kind: str = "last") -> str:
+    base = f"p{project_short_id(project_id)}_{index + 1:03d}"
+    if kind == "first":
+        return f"{base}_first"
+    return base
+
+
+def frame_path(project_id: str, index: int, ext: str = ".jpg", kind: str = "last") -> Path:
+    return ensure_project_dirs(project_id) / "frames" / f"{frame_basename(project_id, index, kind=kind)}{ext}"
 
 
 def final_video_path(project_id: str) -> Path:
@@ -70,4 +85,3 @@ def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None
                 os.remove(tmp)
         except Exception:
             pass
-

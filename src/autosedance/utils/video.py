@@ -91,6 +91,56 @@ def extract_last_frame(
     return output_path
 
 
+def extract_first_frame(video_path: Union[str, Path], output_path: Union[str, Path]) -> Path:
+    """Extract the first decodable video frame."""
+    video_path = Path(video_path)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-i",
+                str(video_path),
+                "-vf",
+                "select=eq(n\\,0)",
+                "-vframes",
+                "1",
+                "-y",
+                str(output_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except Exception:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-ss",
+                "0",
+                "-i",
+                str(video_path),
+                "-vframes",
+                "1",
+                "-y",
+                str(output_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    return output_path
+
+
 def validate_video_file(video_path: Union[str, Path]) -> None:
     """Lightweight validation to ensure the uploaded file is a decodable video.
 

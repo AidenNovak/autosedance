@@ -15,7 +15,7 @@ from ..nodes.scriptwriter import scriptwriter_node
 from ..nodes.segmenter import segmenter_node
 from ..prompts.loader import get_analyzer_prompts
 from ..utils.canon import canon_compact_description, format_canon_summary
-from ..utils.video import concatenate_videos, extract_last_frame
+from ..utils.video import concatenate_videos, extract_first_frame, extract_last_frame
 from .db import get_engine
 from .models import Job, Project, Segment
 from .storage import (
@@ -343,6 +343,12 @@ def _run_extract_frame_job(session: Session, job: Job) -> dict:
         pass
     frame = extract_last_frame(str(video_path), out)
     seg.last_frame_path = str(frame)
+    # Best-effort: keep first-frame reference up to date for review context.
+    try:
+        first_out = frame_path_for_segment(job.project_id, idx, ext=".jpg", kind="first")
+        extract_first_frame(str(video_path), first_out)
+    except Exception:
+        logger.exception("Failed to extract first frame in extract_frame job (project_id=%s index=%s)", job.project_id, idx)
     seg.updated_at = now_utc()
     session.add(seg)
     session.commit()

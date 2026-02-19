@@ -609,6 +609,49 @@ pre {
   margin-bottom: 6px;
 }
 
+.review-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: rgba(10, 12, 20, 0.66);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.review-modal {
+  width: min(980px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.review-textarea {
+  min-height: 140px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.review-frame-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.review-frame-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  background: linear-gradient(180deg, var(--card2), rgba(255, 255, 255, 0.03));
+  display: grid;
+  gap: 8px;
+}
+
+.review-frame-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
 @keyframes spotlightPulse {
   0% {
     box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);

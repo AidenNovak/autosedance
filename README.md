@@ -22,15 +22,17 @@ Notes / 说明:
 
 ## Workflow / 工作流程
 
-1. Create a project, the system generates the full script and the first segment prompt.
-2. You generate the segment video with any external tool and upload it.
-3. The system analyzes the uploaded segment and carries continuity into the next segment.
-4. Repeat until done, then the system assembles the final video.
+1. Create a project, generate `in0` full script, review it in a popup, then confirm.
+2. After confirming `in0`, the system auto-generates Segment `#001` and opens a segment review popup (editable + regenerate + confirm).
+3. You submit segment prompt to your external video tool (for example Jimeng), then upload the segment video.
+4. Upload now auto-saves frames, auto-runs analysis, auto-advances to the next segment, and auto-generates the next segment draft.
+5. Repeat until done, then the system assembles the final video.
 
-1. 创建项目，系统生成完整剧本与第一个片段的提示词。
-2. 你用任意外部工具生成该片段视频并上传。
-3. 系统理解视频内容并将连续性传递给下一个片段。
-4. 循环直到完成，最后自动拼接输出成片。
+1. 创建项目后先生成 `in0` 全局剧本，在弹窗中复核并确认。
+2. 确认 `in0` 后，系统会自动生成 `#001` 分镜，并弹出分镜复核弹窗（可编辑 / 重新生成 / 确认）。
+3. 你将分镜 Prompt 提交到外部视频工具（如即梦），再上传生成的视频。
+4. 上传后系统会自动保存帧、自动分析、自动推进到下一段，并自动生成下一段分镜草稿。
+5. 循环直到全部完成，最后自动拼接输出成片。
 
 Continuity includes **music** now: the prompts keep one coherent music identity across segments; the analyzer emits marker lines (`[[MUSIC_STATE]]` / `[[CANON_SUMMARY]]`) so the next segment can follow the same track.
 
@@ -41,10 +43,17 @@ Continuity includes **music** now: the prompts keep one coherent music identity 
 - Full script (in0), segment script + video prompt (inN), and analysis (inNB) are editable and saveable.
 - Analysis is collapsed by default to avoid overly long pages.
 - Copy buttons are available for full script, continuity context, segment script/prompt, and analysis.
+- Segment review popup includes continuity frame references (previous first/last frame and current last frame, with de-dup).
 
 - in0 全局剧本、inN 片段剧本+Prompt、inNB 分析结果均可编辑并保存。
 - 分析结果默认折叠，避免页面过长。
 - 提供复制按钮：全局剧本、连续性上下文、片段剧本/Prompt、分析结果。
+- 分镜复核弹窗会展示连续性参考帧（上一段首帧/尾帧 + 当前尾帧，自动去重）。
+
+## Frame Naming / 帧命名
+
+- Saved frame files now use project-based names by default, e.g. `p<projectShortId>_001.jpg`.
+- Additional first-frame reference uses `p<projectShortId>_001_first.jpg`.
 
 ## Local Development / 本地运行
 

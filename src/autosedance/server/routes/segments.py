@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
@@ -14,7 +14,7 @@ from ...config import get_settings
 from ...nodes.segmenter import segmenter_node
 from ...prompts.loader import get_analyzer_prompts
 from ...utils.canon import canon_compact_description, format_canon_summary, replace_canon_item
-from ...utils.video import extract_last_frame, validate_video_file
+from ...utils.video import extract_first_frame, extract_last_frame, validate_video_file
 from ..auth import AuthUser, require_read_user, require_user
 from ..authz import require_project_owner
 from ..db import get_session
@@ -23,12 +23,15 @@ from ..routes.common import project_to_detail_out, segment_to_detail_out
 from ..schemas import (
     GenerateWithFeedbackIn,
     ProjectDetailOut,
+    ReviewFrameOut,
     SegmentDetailOut,
+    SegmentReviewContextOut,
     UpdateSegmentAnalysisIn,
     UpdateSegmentIn,
 )
 from ..storage import (
     atomic_write_text,
+    frame_basename,
     frame_path,
     input_video_path,
     segment_txt_path,
@@ -74,6 +77,28 @@ def _latest_frame_before(session: Session, project_id: str, index: int) -> Optio
     )
     seg = session.exec(stmt).first()
     return seg.last_frame_path if seg else None
+
+
+def _existing_first_frame(project_id: str, index: int) -> Optional[Path]:
+    path = frame_path(project_id, index, ext=".jpg", kind="first")
+    if path.exists():
+        return path
+    return None
+
+
+def _existing_last_frame(project_id: str, index: int, seg: Optional[Segment]) -> Optional[Path]:
+    # Prefer DB-tracked path, then deterministic path (new naming), then legacy naming.
+    if seg and seg.last_frame_path:
+        tracked = Path(seg.last_frame_path)
+        if tracked.exists():
+            return tracked
+    preferred = frame_path(project_id, index, ext=".jpg", kind="last")
+    if preferred.exists():
+        return preferred
+    legacy = preferred.parent / f"frame_{index:03d}.jpg"
+    if legacy.exists():
+        return legacy
+    return None
 
 
 @router.post("/{project_id}/segments/{index}/generate", response_model=ProjectDetailOut)
@@ -269,6 +294,65 @@ def get_segment_detail(
     return segment_to_detail_out(project_id, seg)
 
 
+@router.get("/{project_id}/segments/{index}/review_context", response_model=SegmentReviewContextOut)
+def get_segment_review_context(
+    project_id: str,
+    index: int,
+    user: AuthUser = Depends(require_read_user),
+    session: Session = Depends(get_session),
+) -> SegmentReviewContextOut:
+    require_project_owner(session, project_id, user.user_id)
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    frames: list[ReviewFrameOut] = []
+    seen_paths: set[str] = set()
+
+    def _append(key: str, seg_idx: int, label: str, path: Optional[Path], *, kind: str = "last") -> None:
+        if not path:
+            return
+        resolved = str(path.resolve())
+        if resolved in seen_paths:
+            return
+        seen_paths.add(resolved)
+        suffix = "?kind=first" if kind == "first" else ""
+        frames.append(
+            ReviewFrameOut(
+                key=key,  # type: ignore[arg-type]
+                segment_index=seg_idx,
+                label=label,
+                url=f"/api/projects/{project_id}/segments/{seg_idx}/frame{suffix}",
+            )
+        )
+
+    if index > 0:
+        prev_seg = _get_segment(session, project_id, index - 1)
+        _append(
+            "prev_first",
+            index - 1,
+            "Previous segment first frame",
+            _existing_first_frame(project_id, index - 1),
+            kind="first",
+        )
+        _append(
+            "prev_last",
+            index - 1,
+            "Previous segment last frame",
+            _existing_last_frame(project_id, index - 1, prev_seg),
+        )
+
+    current_seg = _get_segment(session, project_id, index)
+    _append(
+        "current_last",
+        index,
+        "Current segment last frame",
+        _existing_last_frame(project_id, index, current_seg),
+    )
+
+    return SegmentReviewContextOut(index=index, frames=frames)
+
+
 @router.post("/{project_id}/segments/{index}/video", response_model=SegmentDetailOut)
 def upload_segment_video(
     project_id: str,
@@ -337,7 +421,7 @@ def upload_segment_video(
     seg.last_frame_path = None
     # Best-effort extract last frame on upload, so the frontend can display it immediately.
     try:
-        frame_out = frame_path(project_id, index, ext=".jpg")
+        frame_out = frame_path(project_id, index, ext=".jpg", kind="last")
         # Avoid leaving a stale frame on disk if extraction fails for the new upload.
         try:
             frame_out.unlink()
@@ -352,6 +436,21 @@ def upload_segment_video(
             pass
         logger.exception("Failed to extract last frame on upload (project_id=%s index=%s)", project_id, index)
         warnings.append("Failed to extract last frame")
+
+    # Best-effort extract first frame for review context (does not block upload).
+    try:
+        first_out = frame_path(project_id, index, ext=".jpg", kind="first")
+        try:
+            first_out.unlink()
+        except FileNotFoundError:
+            pass
+        extract_first_frame(str(dst), first_out)
+    except Exception:
+        try:
+            first_out.unlink()
+        except Exception:
+            pass
+        logger.exception("Failed to extract first frame on upload (project_id=%s index=%s)", project_id, index)
 
     seg.video_path = str(dst)
     seg.video_description = None
@@ -411,12 +510,18 @@ def extract_segment_frame(
 
     warnings = []
     try:
-        frame_out = frame_path(project_id, index, ext=".jpg")
+        frame_out = frame_path(project_id, index, ext=".jpg", kind="last")
         last_frame = extract_last_frame(str(video_path), frame_out)
         seg.last_frame_path = str(last_frame)
     except Exception:
         logger.exception("Failed to extract last frame (project_id=%s index=%s)", project_id, index)
         warnings.append("Failed to extract last frame")
+
+    try:
+        first_out = frame_path(project_id, index, ext=".jpg", kind="first")
+        extract_first_frame(str(video_path), first_out)
+    except Exception:
+        logger.exception("Failed to extract first frame (project_id=%s index=%s)", project_id, index)
 
     seg.updated_at = now_utc()
     session.add(seg)
@@ -453,7 +558,7 @@ def analyze_segment(
     session.refresh(seg)
 
     # Extract last frame
-    frame_out = frame_path(project_id, index, ext=".jpg")
+    frame_out = frame_path(project_id, index, ext=".jpg", kind="last")
     try:
         last_frame = extract_last_frame(seg.video_path, frame_out)
     except Exception:
@@ -514,16 +619,22 @@ def analyze_segment(
 def get_segment_frame(
     project_id: str,
     index: int,
+    kind: str = Query(default="last"),
     user: AuthUser = Depends(require_read_user),
     session: Session = Depends(get_session),
 ):
     require_project_owner(session, project_id, user.user_id)
+    if kind not in ("last", "first"):
+        raise HTTPException(status_code=400, detail="kind must be 'last' or 'first'")
+
     seg = _get_segment(session, project_id, index)
-    if seg is None or not seg.last_frame_path:
+    if kind == "first":
+        path = _existing_first_frame(project_id, index)
+    else:
+        path = _existing_last_frame(project_id, index, seg)
+    if not path:
         raise HTTPException(status_code=404, detail="Frame not found")
-    path = Path(seg.last_frame_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Frame file missing on disk")
+
     return FileResponse(str(path))
 
 
@@ -537,12 +648,10 @@ def download_segment_frame(
     """Force-download the frame (no CORS/fetch needed on the frontend)."""
     require_project_owner(session, project_id, user.user_id)
     seg = _get_segment(session, project_id, index)
-    if seg is None or not seg.last_frame_path:
+    path = _existing_last_frame(project_id, index, seg)
+    if not path:
         raise HTTPException(status_code=404, detail="Frame not found")
-    path = Path(seg.last_frame_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Frame file missing on disk")
 
     ext = path.suffix if path.suffix else ".jpg"
-    filename = f"frame_{index + 1:03d}{ext}"
+    filename = f"{frame_basename(project_id, index, kind='last')}{ext}"
     return FileResponse(str(path), filename=filename)

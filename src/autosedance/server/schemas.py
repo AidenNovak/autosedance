@@ -76,6 +76,18 @@ class SegmentDetailOut(BaseModel):
     updated_at: datetime
 
 
+class ReviewFrameOut(BaseModel):
+    key: Literal["prev_first", "prev_last", "current_last"]
+    segment_index: int
+    label: str
+    url: str
+
+
+class SegmentReviewContextOut(BaseModel):
+    index: int
+    frames: List[ReviewFrameOut] = Field(default_factory=list)
+
+
 class ProjectSummaryOut(BaseModel):
     id: str
     user_prompt: str

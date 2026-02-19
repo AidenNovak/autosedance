@@ -9,13 +9,14 @@ import { FocusGuide } from "@/components/FocusGuide";
 import { FlowStage } from "@/components/FlowStage";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { RegisterCard } from "@/components/RegisterCard";
-import type { Job, ProjectDetail, SegmentDetail, SegmentSummary } from "@/lib/api";
+import type { Job, ProjectDetail, ReviewFrame, SegmentDetail, SegmentSummary } from "@/lib/api";
 import {
   backendUrl,
   createJob,
   getJob,
   getProject,
   getSegment,
+  getSegmentReviewContext,
   updateFullScript,
   updateSegment,
   updateSegmentAnalysis,
@@ -122,6 +123,8 @@ const GUIDE_IDS = {
 type GuideId = (typeof GUIDE_IDS)[keyof typeof GUIDE_IDS];
 const JIMENG_URL = process.env.NEXT_PUBLIC_JIMENG_URL || "https://jimeng.jianying.com/";
 
+type ReviewFrameView = ReviewFrame & { src: string };
+
 export default function ProjectPage() {
   const { t, locale } = useI18n();
   const { me, loading: authLoading } = useAuth();
@@ -152,6 +155,15 @@ export default function ProjectPage() {
   const [analysisDraft, setAnalysisDraft] = useState("");
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
+  const [fullReviewOpen, setFullReviewOpen] = useState(false);
+  const [fullReviewDraft, setFullReviewDraft] = useState("");
+  const [fullReviewFeedback, setFullReviewFeedback] = useState("");
+  const [segmentReviewOpen, setSegmentReviewOpen] = useState(false);
+  const [segmentReviewIndex, setSegmentReviewIndex] = useState<number | null>(null);
+  const [segmentReviewScript, setSegmentReviewScript] = useState("");
+  const [segmentReviewPrompt, setSegmentReviewPrompt] = useState("");
+  const [segmentReviewFeedback, setSegmentReviewFeedback] = useState("");
+  const [segmentReviewFrames, setSegmentReviewFrames] = useState<ReviewFrameView[]>([]);
 
   const jobRunning = !!activeJob && !TERMINAL_JOB_STATUSES.has(activeJob.status);
   const locked = !!busy || jobRunning;
@@ -212,24 +224,66 @@ export default function ProjectPage() {
     }
   }
 
+  async function executeJob(input: { type: Job["type"]; index?: number; feedback?: string }) {
+    const job = await createJob(projectId, { ...input, locale });
+    setActiveJob(job);
+    const finalJob = await waitForJob(job.id);
+    if (!finalJob) throw new Error("Job canceled");
+    if (finalJob.status !== "succeeded") {
+      throw new Error(finalJob.error || `Job ${finalJob.status}`);
+    }
+    return finalJob;
+  }
+
   async function runJob(
     label: string,
     input: { type: Job["type"]; index?: number; feedback?: string },
     afterSuccess?: (finalJob: Job) => Promise<void>
   ) {
     await run(label, async () => {
-      const job = await createJob(projectId, { ...input, locale });
-      setActiveJob(job);
-
-      const finalJob = await waitForJob(job.id);
-      if (!finalJob) return;
-
-      if (finalJob.status !== "succeeded") {
-        throw new Error(finalJob.error || `Job ${finalJob.status}`);
-      }
-
+      const finalJob = await executeJob(input);
       if (afterSuccess) await afterSuccess(finalJob);
     });
+  }
+
+  async function openSegmentReview(index: number) {
+    setSelectedIndex(index);
+    const seg = await refreshSegment(index);
+    const context = await getSegmentReviewContext(projectId, index);
+    const frames = (context.frames || []).map((f) => ({
+      ...f,
+      src: `${backendUrl()}${f.url}`
+    }));
+    setSegmentReviewIndex(index);
+    setSegmentReviewScript(seg.segment_script || "");
+    setSegmentReviewPrompt(seg.video_prompt || "");
+    setSegmentReviewFrames(frames);
+    setSegmentReviewFeedback("");
+    setSegmentReviewOpen(true);
+  }
+
+  async function autoAdvanceAfterUpload(uploadedIndex: number) {
+    await executeJob({ type: "analyze", index: uploadedIndex });
+    const p = await refreshProject({ include_full_script: false, include_canon: true });
+    await refreshSegment(uploadedIndex);
+
+    const nextIndex = uploadedIndex + 1;
+    if (nextIndex >= p.num_segments) {
+      const idx = clamp(p.current_segment_index || uploadedIndex, 0, Math.max(0, p.num_segments - 1));
+      setSelectedIndex(idx);
+      return;
+    }
+
+    setSelectedIndex(nextIndex);
+    await refreshSegment(nextIndex);
+
+    const nextSummary = p.segments.find((s) => s.index === nextIndex);
+    const shouldGenerate = !nextSummary || nextSummary.status === "pending" || nextSummary.status === "failed";
+    if (!shouldGenerate) return;
+
+    await executeJob({ type: "segment_generate", index: nextIndex });
+    await refreshProject({ include_full_script: false, include_canon: false });
+    await openSegmentReview(nextIndex);
   }
 
   // Initial load
@@ -682,9 +736,10 @@ export default function ProjectPage() {
                       async () => {
                         setFullFeedback("");
                         const p = await refreshProject({ include_full_script: true, include_canon: true });
-                        const idx = clamp(p.current_segment_index || 0, 0, Math.max(0, p.num_segments - 1));
-                        setSelectedIndex(idx);
-                        await refreshSegment(idx);
+                        setFullDraft(p.full_script || "");
+                        setFullReviewDraft(p.full_script || "");
+                        setFullReviewFeedback("");
+                        setFullReviewOpen(true);
                       }
                     )
                   }
@@ -702,6 +757,19 @@ export default function ProjectPage() {
             <div style={{ display: "grid", gap: 12 }}>
               <div className="row" style={{ justifyContent: "flex-end" }}>
                 {fullDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
+                {fullDraft.trim() ? (
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setFullReviewDraft(fullDraft);
+                      setFullReviewFeedback("");
+                      setFullReviewOpen(true);
+                    }}
+                    disabled={locked}
+                  >
+                    {t("project.full.review")}
+                  </button>
+                ) : null}
                 {fullDraft.trim() ? (
                   <button
                     className="btn"
@@ -798,9 +866,10 @@ export default function ProjectPage() {
                       "job_seg_gen",
                       { type: "segment_generate", index: selectedIndex, feedback: segFeedback.trim() || undefined },
                       async () => {
+                        const idx = selectedIndex;
                         setSegFeedback("");
                         await refreshProject({ include_full_script: false, include_canon: false });
-                        await refreshSegment(selectedIndex);
+                        await openSegmentReview(idx);
                       }
                     )
                   }
@@ -970,7 +1039,7 @@ export default function ProjectPage() {
                   style={!canUpload || locked ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                   title={!canUpload ? t("project.upload.generate_first_title") : undefined}
                 >
-                  {busy === "upload" ? t("project.upload.uploading") : t("project.upload.choose_file")}
+                  {busy === "upload" || busy === "upload_auto" ? t("project.upload.uploading") : t("project.upload.choose_file")}
                   <input
                     type="file"
                     accept="video/*"
@@ -979,13 +1048,16 @@ export default function ProjectPage() {
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
-                      run("upload", async () => {
-                        const seg = await uploadVideo(projectId, selectedIndex, f);
+                      const uploadedIndex = selectedIndex;
+                      run("upload_auto", async () => {
+                        const seg = await uploadVideo(projectId, uploadedIndex, f);
                         setSegment(seg);
                         setSegScriptDraft(seg.segment_script || "");
                         setSegPromptDraft(seg.video_prompt || "");
                         setUploadWarnings((seg.warnings || []).filter((w): w is string => typeof w === "string" && w.length > 0));
                         await refreshProject({ include_full_script: false, include_canon: false });
+                        await autoAdvanceAfterUpload(uploadedIndex);
+                        e.target.value = "";
                       });
                     }}
                   />
@@ -1043,7 +1115,6 @@ export default function ProjectPage() {
                       const url = `${backendUrl()}/api/projects/${projectId}/segments/${selectedIndex}/frame/download`;
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `frame_${pad3Display(selectedIndex)}.jpg`;
                       document.body.appendChild(a);
                       a.click();
                       a.remove();
@@ -1204,6 +1275,223 @@ export default function ProjectPage() {
         </FlowStage>
       </div>
       </div>
+
+      {fullReviewOpen ? (
+        <div className="review-modal-backdrop">
+          <div className="review-modal card solid">
+            <div className="hd">
+              <h2>{t("project.full.review_title")}</h2>
+              <span className="pill">{t("project.full.review_step")}</span>
+            </div>
+            <div className="bd" style={{ display: "grid", gap: 12 }}>
+              <div className="muted">{t("project.full.review_hint")}</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="muted">{t("project.feedback.optional")}</div>
+                <input
+                  className="input"
+                  value={fullReviewFeedback}
+                  onChange={(e) => setFullReviewFeedback(e.target.value)}
+                  placeholder={t("project.feedback.full_placeholder")}
+                  disabled={locked}
+                />
+              </div>
+              <textarea
+                className="textarea review-textarea"
+                value={fullReviewDraft}
+                onChange={(e) => setFullReviewDraft(e.target.value)}
+                disabled={locked}
+              />
+              <div className="row" style={{ justifyContent: "flex-end" }}>
+                <button className="btn" onClick={() => setFullReviewOpen(false)} disabled={locked}>
+                  {t("common.close")}
+                </button>
+                <button
+                  className="btn"
+                  onClick={async () => {
+                    const ok = await copyText(fullReviewDraft);
+                    setCopied(ok ? "full_review" : null);
+                    setTimeout(() => setCopied(null), 1500);
+                  }}
+                  disabled={!fullReviewDraft.trim()}
+                >
+                  {copied === "full_review" ? t("common.copied") : t("common.copy")}
+                </button>
+                <button
+                  className="btn"
+                  onClick={() =>
+                    runJob(
+                      "job_full_script_modal",
+                      { type: "full_script", feedback: fullReviewFeedback.trim() || undefined },
+                      async () => {
+                        const p = await refreshProject({ include_full_script: true, include_canon: true });
+                        setFullDraft(p.full_script || "");
+                        setFullReviewDraft(p.full_script || "");
+                      }
+                    )
+                  }
+                  disabled={locked}
+                >
+                  {jobRunning && activeJob?.type === "full_script" ? t("common.generating") : t("common.regenerate")}
+                </button>
+                <button
+                  className="btn primary"
+                  onClick={() =>
+                    run("full_review_confirm", async () => {
+                      const p = await updateFullScript(projectId, fullReviewDraft, true);
+                      setProject(p);
+                      setFullDraft(p.full_script || "");
+                      setFullReviewOpen(false);
+                      setSelectedIndex(0);
+                      await refreshSegment(0);
+                      await executeJob({ type: "segment_generate", index: 0 });
+                      await refreshProject({ include_full_script: false, include_canon: false });
+                      await openSegmentReview(0);
+                    })
+                  }
+                  disabled={locked || !fullReviewDraft.trim()}
+                >
+                  {busy === "full_review_confirm" ? t("common.saving") : t("project.full.confirm_and_continue")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {segmentReviewOpen && segmentReviewIndex !== null ? (
+        <div className="review-modal-backdrop">
+          <div className="review-modal card solid">
+            <div className="hd">
+              <h2>{t("project.segment.review_title", { n: pad3Display(segmentReviewIndex) })}</h2>
+              <span className="pill">{t("project.segment.review_step")}</span>
+            </div>
+            <div className="bd" style={{ display: "grid", gap: 12 }}>
+              <div className="muted">{t("project.segment.review_hint")}</div>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <div className="muted">{t("project.segment.review.frames")}</div>
+                {segmentReviewFrames.length > 0 ? (
+                  <div className="review-frame-grid">
+                    {segmentReviewFrames.map((f) => (
+                      <div key={`${f.key}-${f.segment_index}`} className="review-frame-card">
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {f.label}
+                        </div>
+                        <img className="img review-frame-img" src={f.src} alt={f.label} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="muted">{t("project.segment.review.no_frames")}</div>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div className="muted">{t("project.segment.script_label")}</div>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const ok = await copyText(segmentReviewScript);
+                      setCopied(ok ? "seg_review_script" : null);
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                    disabled={!segmentReviewScript.trim()}
+                  >
+                    {copied === "seg_review_script" ? t("common.copied") : t("common.copy")}
+                  </button>
+                </div>
+                <textarea
+                  className="textarea review-textarea"
+                  value={segmentReviewScript}
+                  onChange={(e) => setSegmentReviewScript(e.target.value)}
+                  disabled={locked}
+                />
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <div className="muted">{t("project.segment.prompt_label")}</div>
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const ok = await copyText(segmentReviewPrompt);
+                      setCopied(ok ? "seg_review_prompt" : null);
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                    disabled={!segmentReviewPrompt.trim()}
+                  >
+                    {copied === "seg_review_prompt" ? t("common.copied") : t("common.copy")}
+                  </button>
+                </div>
+                <textarea
+                  className="textarea review-textarea"
+                  value={segmentReviewPrompt}
+                  onChange={(e) => setSegmentReviewPrompt(e.target.value)}
+                  disabled={locked}
+                />
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div className="muted">{t("project.feedback.optional")}</div>
+                <input
+                  className="input"
+                  value={segmentReviewFeedback}
+                  onChange={(e) => setSegmentReviewFeedback(e.target.value)}
+                  placeholder={t("project.feedback.segment_placeholder")}
+                  disabled={locked}
+                />
+              </div>
+
+              <div className="row" style={{ justifyContent: "flex-end" }}>
+                <button className="btn" onClick={() => setSegmentReviewOpen(false)} disabled={locked}>
+                  {t("common.close")}
+                </button>
+                <button
+                  className="btn"
+                  onClick={() =>
+                    runJob(
+                      "job_seg_gen_modal",
+                      {
+                        type: "segment_generate",
+                        index: segmentReviewIndex,
+                        feedback: segmentReviewFeedback.trim() || undefined
+                      },
+                      async () => {
+                        await refreshProject({ include_full_script: false, include_canon: false });
+                        await openSegmentReview(segmentReviewIndex);
+                      }
+                    )
+                  }
+                  disabled={locked}
+                >
+                  {jobRunning && activeJob?.type === "segment_generate" ? t("common.generating") : t("common.regenerate")}
+                </button>
+                <button
+                  className="btn primary"
+                  onClick={() =>
+                    run("segment_review_confirm", async () => {
+                      const p = await updateSegment(projectId, segmentReviewIndex, {
+                        segment_script: segmentReviewScript,
+                        video_prompt: segmentReviewPrompt,
+                        invalidate_downstream: true
+                      });
+                      setProject(p);
+                      setSegScriptDraft(segmentReviewScript);
+                      setSegPromptDraft(segmentReviewPrompt);
+                      setSegmentReviewOpen(false);
+                      await refreshSegment(segmentReviewIndex);
+                    })
+                  }
+                  disabled={locked || (!segmentReviewScript.trim() && !segmentReviewPrompt.trim())}
+                >
+                  {busy === "segment_review_confirm" ? t("common.saving") : t("project.segment.confirm_and_continue")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

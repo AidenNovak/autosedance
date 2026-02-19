@@ -24,6 +24,18 @@ export type SegmentDetail = {
   updated_at: string;
 };
 
+export type ReviewFrame = {
+  key: "prev_first" | "prev_last" | "current_last";
+  segment_index: number;
+  label: string;
+  url: string;
+};
+
+export type SegmentReviewContext = {
+  index: number;
+  frames: ReviewFrame[];
+};
+
 export type ProjectSummary = {
   id: string;
   user_prompt: string;
@@ -174,6 +186,10 @@ export async function getProject(
 
 export async function getSegment(projectId: string, index: number): Promise<SegmentDetail> {
   return req<SegmentDetail>(`/api/projects/${projectId}/segments/${index}`);
+}
+
+export async function getSegmentReviewContext(projectId: string, index: number): Promise<SegmentReviewContext> {
+  return req<SegmentReviewContext>(`/api/projects/${projectId}/segments/${index}/review_context`);
 }
 
 export async function generateFullScript(projectId: string, feedback?: string): Promise<ProjectDetail> {
