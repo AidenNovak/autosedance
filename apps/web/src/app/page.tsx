@@ -63,12 +63,12 @@ export default function HomePage() {
         <div className="hd">
           <h2>{t("home.projects.title")}</h2>
           <div className="row">
-            <button className="btn" onClick={refresh} disabled={loading}>
-              {t("common.refresh")}
-            </button>
             <Link className="btn primary" href="/new">
               {t("common.new")}
             </Link>
+            <button className="btn" onClick={refresh} disabled={loading}>
+              {t("common.refresh")}
+            </button>
           </div>
         </div>
         <div className="bd">
@@ -90,7 +90,7 @@ export default function HomePage() {
                     <h2 style={{ fontSize: 14, margin: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                       {p.user_prompt.slice(0, 56) || t("home.projects.empty_prompt")}
                     </h2>
-                    <span className="pill">
+                    <span className="pill next-action-pill">
                       {(() => {
                         const key = `next.${p.next_action}`;
                         const label = t(key);
@@ -129,6 +129,9 @@ export default function HomePage() {
               ))}
             </div>
           )}
+          <div className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+            {t("home.projects.focus_hint")}
+          </div>
         </div>
       </div>
 

@@ -483,3 +483,113 @@ pre {
   height: 100%;
   background: linear-gradient(90deg, rgba(251, 191, 36, 0.9), rgba(45, 212, 191, 0.85));
 }
+
+.flow-stage .hd {
+  align-items: center;
+}
+
+.flow-hint {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.stage-active {
+  border-color: rgba(251, 191, 36, 0.38);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(251, 191, 36, 0.24) inset;
+}
+
+.stage-done {
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+.next-action-pill {
+  border-color: rgba(251, 191, 36, 0.34);
+  color: rgba(251, 191, 36, 0.95);
+}
+
+.more-actions > summary {
+  user-select: none;
+}
+
+.guide-target-active {
+  border-radius: 12px;
+}
+
+.guide-pulse {
+  animation: guidePulse 2.2s ease-in-out infinite;
+}
+
+@keyframes guidePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  background: rgba(0, 0, 0, 0.32);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  cursor: default;
+}
+
+.tour-spotlight {
+  position: fixed;
+  z-index: 131;
+  border-radius: 12px;
+  border: 2px solid rgba(251, 191, 36, 0.75);
+  box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.2);
+  pointer-events: none;
+  animation: spotlightPulse 1.8s ease-in-out infinite;
+}
+
+.tour-popover {
+  position: fixed;
+  width: min(320px, calc(100vw - 24px));
+  z-index: 132;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--card2), rgba(255, 255, 255, 0.03));
+  box-shadow: var(--shadow);
+}
+
+.tour-popover h3 {
+  margin: 2px 0 10px 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.tour-step {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+@keyframes spotlightPulse {
+  0% {
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(251, 191, 36, 0.14);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-pulse,
+  .tour-spotlight {
+    animation: none !important;
+  }
+}

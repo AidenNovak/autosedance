@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/AuthProvider";
+import { FocusGuide } from "@/components/FocusGuide";
+import { FlowStage } from "@/components/FlowStage";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import { RegisterCard } from "@/components/RegisterCard";
 import type { Job, ProjectDetail, SegmentDetail, SegmentSummary } from "@/lib/api";
 import {
@@ -105,6 +108,18 @@ function statusDotClass(status: string) {
       return "dot idle";
   }
 }
+
+const GUIDE_IDS = {
+  segmentList: "guide-segment-list",
+  nextPill: "guide-next-pill",
+  in0: "guide-cta-in0",
+  segment: "guide-cta-segment",
+  upload: "guide-cta-upload",
+  analyze: "guide-cta-analyze",
+  assemble: "guide-cta-assemble"
+} as const;
+
+type GuideId = (typeof GUIDE_IDS)[keyof typeof GUIDE_IDS];
 
 export default function ProjectPage() {
   const { t, locale } = useI18n();
@@ -334,6 +349,43 @@ export default function ProjectPage() {
   const segPromptDirty = segPromptDraft !== (segment?.video_prompt || "");
   const analysisDirty = analysisDraft !== (segment?.video_description || "");
   const hasUnsaved = fullDirty || segScriptDirty || segPromptDirty || analysisDirty;
+  const isEditingRef = useRef(false);
+
+  const activeGuideId: GuideId | null = useMemo(() => {
+    if (!project) return null;
+    switch (project.next_action) {
+      case "generate_full_script":
+        return GUIDE_IDS.in0;
+      case "generate_segment":
+        return GUIDE_IDS.segment;
+      case "upload_video":
+        return GUIDE_IDS.upload;
+      case "analyze":
+      case "wait_analyze":
+        return GUIDE_IDS.analyze;
+      case "assemble":
+      case "done":
+        return GUIDE_IDS.assemble;
+      case "retry":
+        return segment?.video_url ? GUIDE_IDS.analyze : GUIDE_IDS.segment;
+      default:
+        return GUIDE_IDS.segment;
+    }
+  }, [project, segment?.video_url]);
+
+  const stageDone = useMemo(() => {
+    const in0 = !!(project?.full_script || "").trim();
+    const segmentReady = !!(segment?.segment_script || "").trim() || !!(segment?.video_prompt || "").trim();
+    const uploaded = !!segment?.video_url;
+    const assembled = !!project?.final_video_path;
+    return { in0, segmentReady, uploaded, assembled };
+  }, [project?.full_script, project?.final_video_path, segment?.segment_script, segment?.video_prompt, segment?.video_url]);
+
+  function stageStatusLabel(done: boolean, activeIds: GuideId[]): string {
+    if (done) return t("guide.stage_status.done");
+    if (activeGuideId && activeIds.includes(activeGuideId)) return t("guide.stage_status.active");
+    return t("guide.stage_status.todo");
+  }
 
   useEffect(() => {
     if (!hasUnsaved) return;
@@ -344,6 +396,34 @@ export default function ProjectPage() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsaved]);
+
+  useEffect(() => {
+    const updateEditingFlag = () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) {
+        isEditingRef.current = false;
+        return;
+      }
+      isEditingRef.current = !!el.closest("input, textarea, [contenteditable='true']");
+    };
+    document.addEventListener("focusin", updateEditingFlag);
+    document.addEventListener("focusout", updateEditingFlag);
+    return () => {
+      document.removeEventListener("focusin", updateEditingFlag);
+      document.removeEventListener("focusout", updateEditingFlag);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeGuideId) return;
+    if (isEditingRef.current) return;
+    const id = window.setTimeout(() => {
+      const el = document.querySelector(`[data-guide-id=\"${activeGuideId}\"]`) as HTMLElement | null;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    }, 130);
+    return () => window.clearTimeout(id);
+  }, [activeGuideId, selectedIndex]);
 
   if (authLoading && !me) {
     return (
@@ -409,8 +489,39 @@ export default function ProjectPage() {
     return out === key ? status : out;
   }
 
+  function ctaClass(id: GuideId): string {
+    return `btn primary${activeGuideId === id ? " guide-pulse" : ""}`;
+  }
+
   return (
-    <div className="split">
+    <>
+      <OnboardingTour
+        enabled={authenticated}
+        storageKey="autos_tour_seen_v1"
+        steps={[
+          {
+            targetId: GUIDE_IDS.segmentList,
+            title: t("guide.tour.step1.title"),
+            body: t("guide.tour.step1.body")
+          },
+          {
+            targetId: GUIDE_IDS.nextPill,
+            title: t("guide.tour.step2.title"),
+            body: t("guide.tour.step2.body")
+          },
+          {
+            targetId: GUIDE_IDS.upload,
+            title: t("guide.tour.step3.title"),
+            body: t("guide.tour.step3.body")
+          }
+        ]}
+        backLabel={t("guide.tour.back")}
+        nextLabel={t("guide.tour.next")}
+        skipLabel={t("guide.tour.skip")}
+        doneLabel={t("guide.tour.done")}
+      />
+
+      <div className="split">
       <div className="card sidebar">
         <div className="hd">
           <h2>{t("project.segments.title")}</h2>
@@ -419,9 +530,9 @@ export default function ProjectPage() {
           </span>
         </div>
         <div className="bd" style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ display: "grid", gap: 10 }} data-guide-id={GUIDE_IDS.nextPill}>
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="pill">{trNext(project.next_action)}</span>
+                <span className="pill next-action-pill">{trNext(project.next_action)}</span>
                 <span className="pill">
                   {t("project.current", {
                     current:
@@ -431,29 +542,32 @@ export default function ProjectPage() {
                   })}
                 </span>
               </div>
-              <div className="row">
-                <button
-                  className="btn"
-                  onClick={() =>
-                  run("refresh_project", async () => {
-                    await refreshProject({ include_full_script: false, include_canon: false });
-                  })
-                }
-                disabled={locked}
-              >
-                {t("common.refresh")}
-              </button>
-              <button
-                className="btn"
-                onClick={() => setSelectedIndex(clamp(project.current_segment_index || 0, 0, project.num_segments - 1))}
-                disabled={locked}
-              >
-                {t("project.go_current")}
-              </button>
-            </div>
+              <details className="details-clean more-actions">
+                <summary className="btn">{t("guide.more_actions")}</summary>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      run("refresh_project", async () => {
+                        await refreshProject({ include_full_script: false, include_canon: false });
+                      })
+                    }
+                    disabled={locked}
+                  >
+                    {t("common.refresh")}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => setSelectedIndex(clamp(project.current_segment_index || 0, 0, project.num_segments - 1))}
+                    disabled={locked}
+                  >
+                    {t("project.go_current")}
+                  </button>
+                </div>
+              </details>
           </div>
 
-          <div className="segscroll">
+          <div className="segscroll" data-guide-id={GUIDE_IDS.segmentList}>
             <div className="seglist">
               {project.segments.map((s) => {
                 const active = s.index === selectedIndex;
@@ -546,13 +660,17 @@ export default function ProjectPage() {
         ) : null}
 
         <div className="grid two">
-          <div className="card">
-            <div className="hd">
-              <h2>{t("project.in0.title")}</h2>
-              <div className="row">
-                {fullDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
+          <FlowStage
+            title={t("project.in0.title")}
+            hint={t("guide.stage_hint.in0")}
+            statusLabel={stageStatusLabel(stageDone.in0, [GUIDE_IDS.in0])}
+            active={activeGuideId === GUIDE_IDS.in0}
+            done={stageDone.in0}
+            guideId="guide-stage-in0"
+            right={
+              <FocusGuide id={GUIDE_IDS.in0} activeId={activeGuideId}>
                 <button
-                  className="btn primary"
+                  className={ctaClass(GUIDE_IDS.in0)}
                   onClick={() =>
                     runJob(
                       "job_full_script",
@@ -574,36 +692,44 @@ export default function ProjectPage() {
                       ? t("common.regenerate")
                       : t("common.generate")}
                 </button>
-                <button
-                  className="btn"
-                  onClick={async () => {
-                    const ok = await copyText(fullDraft);
-                    setCopied(ok ? "full" : null);
-                    setTimeout(() => setCopied(null), 1500);
-                  }}
-                  disabled={!fullDraft.trim()}
-                >
-                  {copied === "full" ? t("common.copied") : t("common.copy")}
-                </button>
-                <button
-                  className="btn"
-                  onClick={() =>
-                    run("save_full", async () => {
-                      const p = await updateFullScript(projectId, fullDraft, true);
-                      setProject(p);
-                      setFullDraft(p.full_script || "");
-                      const idx = clamp(p.current_segment_index || 0, 0, Math.max(0, p.num_segments - 1));
-                      setSelectedIndex(idx);
-                      await refreshSegment(idx);
-                    })
-                  }
-                  disabled={locked}
-                >
-                  {busy === "save_full" ? t("common.saving") : t("common.save")}
-                </button>
+              </FocusGuide>
+            }
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              <div className="row" style={{ justifyContent: "flex-end" }}>
+                {fullDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
+                {fullDraft.trim() ? (
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      const ok = await copyText(fullDraft);
+                      setCopied(ok ? "full" : null);
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                  >
+                    {copied === "full" ? t("common.copied") : t("common.copy")}
+                  </button>
+                ) : null}
+                {fullDirty ? (
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      run("save_full", async () => {
+                        const p = await updateFullScript(projectId, fullDraft, true);
+                        setProject(p);
+                        setFullDraft(p.full_script || "");
+                        const idx = clamp(p.current_segment_index || 0, 0, Math.max(0, p.num_segments - 1));
+                        setSelectedIndex(idx);
+                        await refreshSegment(idx);
+                      })
+                    }
+                    disabled={locked}
+                  >
+                    {busy === "save_full" ? t("common.saving") : t("common.save")}
+                  </button>
+                ) : null}
               </div>
-            </div>
-            <div className="bd" style={{ display: "grid", gap: 12 }}>
+
               <div style={{ display: "grid", gap: 6 }}>
                 <div className="muted">{t("project.feedback.optional")}</div>
                 <input
@@ -622,7 +748,7 @@ export default function ProjectPage() {
                 disabled={locked}
               />
             </div>
-          </div>
+          </FlowStage>
 
           <div className="card">
             <div className="hd">
@@ -652,17 +778,37 @@ export default function ProjectPage() {
         </div>
 
         <div className="grid two">
-          <div className="card">
-            <div className="hd">
-              <h2>
-                {t("project.segment.title", { n: pad3Display(selectedIndex) })}{" "}
-                {timeRange ? <span className="pill tiny">{timeRange}</span> : null}
-              </h2>
-              <span className="pill">
-                {trStatus((segment?.status || selectedSummary?.status || "pending") as any)}
-              </span>
-            </div>
-            <div className="bd" style={{ display: "grid", gap: 12 }}>
+          <FlowStage
+            title={`${t("project.segment.title", { n: pad3Display(selectedIndex) })}${timeRange ? ` · ${timeRange}` : ""}`}
+            hint={t("guide.stage_hint.segment")}
+            statusLabel={stageStatusLabel(stageDone.segmentReady, [GUIDE_IDS.segment])}
+            active={activeGuideId === GUIDE_IDS.segment}
+            done={stageDone.segmentReady}
+            guideId="guide-stage-segment"
+            right={
+              <FocusGuide id={GUIDE_IDS.segment} activeId={activeGuideId}>
+                <button
+                  className={ctaClass(GUIDE_IDS.segment)}
+                  onClick={() =>
+                    runJob(
+                      "job_seg_gen",
+                      { type: "segment_generate", index: selectedIndex, feedback: segFeedback.trim() || undefined },
+                      async () => {
+                        setSegFeedback("");
+                        await refreshProject({ include_full_script: false, include_canon: false });
+                        await refreshSegment(selectedIndex);
+                      }
+                    )
+                  }
+                  disabled={locked || !project.full_script}
+                  title={!project.full_script ? t("project.in0.generate_first_title") : ""}
+                >
+                  {jobRunning && activeJob?.type === "segment_generate" ? t("common.generating") : t("project.segment.generate")}
+                </button>
+              </FocusGuide>
+            }
+          >
+            <div style={{ display: "grid", gap: 12 }}>
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <div className="row">
                   <button
@@ -683,41 +829,25 @@ export default function ProjectPage() {
 
                 <div className="row">
                   {segScriptDirty || segPromptDirty ? <span className="pill">{t("common.unsaved")}</span> : null}
-                  <button
-                    className="btn primary"
-                    onClick={() =>
-                      runJob(
-                        "job_seg_gen",
-                        { type: "segment_generate", index: selectedIndex, feedback: segFeedback.trim() || undefined },
-                        async () => {
-                          setSegFeedback("");
-                          await refreshProject({ include_full_script: false, include_canon: false });
+                  {segScriptDirty || segPromptDirty ? (
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        run("seg_save", async () => {
+                          const p = await updateSegment(projectId, selectedIndex, {
+                            segment_script: segScriptDraft,
+                            video_prompt: segPromptDraft,
+                            invalidate_downstream: true
+                          });
+                          setProject(p);
                           await refreshSegment(selectedIndex);
-                        }
-                      )
-                    }
-                    disabled={locked || !project.full_script}
-                    title={!project.full_script ? t("project.in0.generate_first_title") : ""}
-                  >
-                    {jobRunning && activeJob?.type === "segment_generate" ? t("common.generating") : t("project.segment.generate")}
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={() =>
-                      run("seg_save", async () => {
-                        const p = await updateSegment(projectId, selectedIndex, {
-                          segment_script: segScriptDraft,
-                          video_prompt: segPromptDraft,
-                          invalidate_downstream: true
-                        });
-                        setProject(p);
-                        await refreshSegment(selectedIndex);
-                      })
-                    }
-                    disabled={locked}
-                  >
-                    {busy === "seg_save" ? t("common.saving") : t("project.segment.save")}
-                  </button>
+                        })
+                      }
+                      disabled={locked}
+                    >
+                      {busy === "seg_save" ? t("common.saving") : t("project.segment.save")}
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -735,18 +865,19 @@ export default function ProjectPage() {
               <div style={{ display: "grid", gap: 6 }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <div className="muted">{t("project.segment.script_label")}</div>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={async () => {
-                      const ok = await copyText(segScriptDraft);
-                      setCopied(ok ? "seg_script" : null);
-                      setTimeout(() => setCopied(null), 1500);
-                    }}
-                    disabled={!segScriptDraft.trim()}
-                  >
-                    {copied === "seg_script" ? t("common.copied") : t("common.copy")}
-                  </button>
+                  {segScriptDraft.trim() ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const ok = await copyText(segScriptDraft);
+                        setCopied(ok ? "seg_script" : null);
+                        setTimeout(() => setCopied(null), 1500);
+                      }}
+                    >
+                      {copied === "seg_script" ? t("common.copied") : t("common.copy")}
+                    </button>
+                  ) : null}
                 </div>
                 <textarea
                   className="textarea"
@@ -759,18 +890,19 @@ export default function ProjectPage() {
               <div style={{ display: "grid", gap: 6 }}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
                   <div className="muted">{t("project.segment.prompt_label")}</div>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={async () => {
-                      const ok = await copyText(segPromptDraft);
-                      setCopied(ok ? "seg_prompt" : null);
-                      setTimeout(() => setCopied(null), 1500);
-                    }}
-                    disabled={!segPromptDraft.trim()}
-                  >
-                    {copied === "seg_prompt" ? t("common.copied") : t("common.copy")}
-                  </button>
+                  {segPromptDraft.trim() ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const ok = await copyText(segPromptDraft);
+                        setCopied(ok ? "seg_prompt" : null);
+                        setTimeout(() => setCopied(null), 1500);
+                      }}
+                    >
+                      {copied === "seg_prompt" ? t("common.copied") : t("common.copy")}
+                    </button>
+                  ) : null}
                 </div>
                 <textarea
                   className="textarea"
@@ -780,18 +912,19 @@ export default function ProjectPage() {
                 />
               </div>
             </div>
-          </div>
+          </FlowStage>
 
-          <div className="card">
-            <div className="hd">
-              <h2>{t("project.upload.title")}</h2>
-              <span className="pill">{t("project.upload.mode")}</span>
-            </div>
-              <div className="bd" style={{ display: "grid", gap: 12 }}>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                <div className="muted">{t("project.upload.for_segment", { n: pad3Display(selectedIndex) })}</div>
+          <FlowStage
+            title={t("project.upload.title")}
+            hint={t("guide.stage_hint.upload")}
+            statusLabel={stageStatusLabel(stageDone.uploaded, [GUIDE_IDS.upload, GUIDE_IDS.analyze])}
+            active={activeGuideId === GUIDE_IDS.upload || activeGuideId === GUIDE_IDS.analyze}
+            done={stageDone.uploaded}
+            guideId="guide-stage-upload"
+            right={
+              <FocusGuide id={GUIDE_IDS.upload} activeId={activeGuideId}>
                 <label
-                  className="btn"
+                  className={`btn primary${activeGuideId === GUIDE_IDS.upload ? " guide-pulse" : ""}`}
                   style={!canUpload || locked ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
                   title={!canUpload ? t("project.upload.generate_first_title") : undefined}
                 >
@@ -815,6 +948,13 @@ export default function ProjectPage() {
                     }}
                   />
                 </label>
+              </FocusGuide>
+            }
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <div className="muted">{t("project.upload.for_segment", { n: pad3Display(selectedIndex) })}</div>
+                <span className="pill">{t("project.upload.mode")}</span>
               </div>
 
               {!loadingSegment && !canUpload ? (
@@ -833,66 +973,69 @@ export default function ProjectPage() {
                 </div>
               ) : null}
 
-              <div className="row" style={{ justifyContent: "space-between" }}>
+              {segment?.video_url || segment?.frame_url ? (
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      runJob(
+                        "job_extract_frame",
+                        { type: "extract_frame", index: selectedIndex },
+                        async () => {
+                          await refreshProject({ include_full_script: false, include_canon: false });
+                          await refreshSegment(selectedIndex);
+                        }
+                      )
+                    }
+                    disabled={locked || !segment?.video_url}
+                  >
+                    {jobRunning && activeJob?.type === "extract_frame"
+                      ? t("project.frame.extracting")
+                      : t("project.frame.retry_extract")}
+                  </button>
+
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      if (!segment?.frame_url) return;
+                      const url = `${backendUrl()}/api/projects/${projectId}/segments/${selectedIndex}/frame/download`;
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `frame_${pad3Display(selectedIndex)}.jpg`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    }}
+                    disabled={locked || !segment?.frame_url}
+                  >
+                    {t("project.frame.save")}
+                  </button>
+                </div>
+              ) : null}
+
+              <FocusGuide id={GUIDE_IDS.analyze} activeId={activeGuideId}>
                 <button
-                  className="btn"
+                  className={ctaClass(GUIDE_IDS.analyze)}
                   onClick={() =>
                     runJob(
-                      "job_extract_frame",
-                      { type: "extract_frame", index: selectedIndex },
+                      "job_analyze",
+                      { type: "analyze", index: selectedIndex },
                       async () => {
-                        await refreshProject({ include_full_script: false, include_canon: false });
+                        const prevCurrent = project.current_segment_index || 0;
+                        const p = await refreshProject({ include_full_script: false, include_canon: true });
                         await refreshSegment(selectedIndex);
+                        if (selectedIndex === prevCurrent) {
+                          const idx = clamp(p.current_segment_index || 0, 0, Math.max(0, p.num_segments - 1));
+                          setSelectedIndex(idx);
+                        }
                       }
                     )
                   }
                   disabled={locked || !segment?.video_url}
                 >
-                  {jobRunning && activeJob?.type === "extract_frame"
-                    ? t("project.frame.extracting")
-                    : t("project.frame.retry_extract")}
+                  {jobRunning && activeJob?.type === "analyze" ? t("project.analyzing") : t("project.analyze")}
                 </button>
-
-                <button
-                  className="btn"
-                  onClick={() => {
-                    if (!segment?.frame_url) return;
-                    const url = `${backendUrl()}/api/projects/${projectId}/segments/${selectedIndex}/frame/download`;
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `frame_${pad3Display(selectedIndex)}.jpg`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                  }}
-                  disabled={locked || !segment?.frame_url}
-                >
-                  {t("project.frame.save")}
-                </button>
-              </div>
-
-              <button
-                className="btn primary"
-                onClick={() =>
-                  runJob(
-                    "job_analyze",
-                    { type: "analyze", index: selectedIndex },
-                    async () => {
-                      const prevCurrent = project.current_segment_index || 0;
-                      const p = await refreshProject({ include_full_script: false, include_canon: true });
-                      await refreshSegment(selectedIndex);
-                      // Match the legacy flow: analyzing the current segment advances to the next.
-                      if (selectedIndex === prevCurrent) {
-                        const idx = clamp(p.current_segment_index || 0, 0, Math.max(0, p.num_segments - 1));
-                        setSelectedIndex(idx);
-                      }
-                    }
-                  )
-                }
-                disabled={locked || !segment?.video_url}
-              >
-                {jobRunning && activeJob?.type === "analyze" ? t("project.analyzing") : t("project.analyze")}
-              </button>
+              </FocusGuide>
 
               {frameSrc ? <img className="img" src={frameSrc} alt={t("project.frame.alt")} /> : null}
 
@@ -928,56 +1071,62 @@ export default function ProjectPage() {
                   />
 
                   <div className="row" style={{ justifyContent: "flex-end" }}>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={async () => {
-                        const ok = await copyText(analysisDraft);
-                        setCopied(ok ? "analysis" : null);
-                        setTimeout(() => setCopied(null), 1500);
-                      }}
-                      disabled={!analysisDraft.trim()}
-                    >
-                      {copied === "analysis" ? t("common.copied") : t("common.copy")}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => setAnalysisDraft(segment?.video_description || "")}
-                      disabled={!analysisDirty}
-                    >
-                      {t("common.reset")}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn primary"
-                      onClick={() =>
-                        run("analysis_save", async () => {
-                          const p = await updateSegmentAnalysis(projectId, selectedIndex, analysisDraft);
-                          setProject(p);
-                          await refreshSegment(selectedIndex);
-                        })
-                      }
-                      disabled={locked || !analysisDirty}
-                    >
-                      {busy === "analysis_save" ? t("common.saving") : t("common.save")}
-                    </button>
+                    {analysisDraft.trim() ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={async () => {
+                          const ok = await copyText(analysisDraft);
+                          setCopied(ok ? "analysis" : null);
+                          setTimeout(() => setCopied(null), 1500);
+                        }}
+                      >
+                        {copied === "analysis" ? t("common.copied") : t("common.copy")}
+                      </button>
+                    ) : null}
+                    {analysisDirty ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setAnalysisDraft(segment?.video_description || "")}
+                      >
+                        {t("common.reset")}
+                      </button>
+                    ) : null}
+                    {analysisDirty ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() =>
+                          run("analysis_save", async () => {
+                            const p = await updateSegmentAnalysis(projectId, selectedIndex, analysisDraft);
+                            setProject(p);
+                            await refreshSegment(selectedIndex);
+                          })
+                        }
+                        disabled={locked}
+                      >
+                        {busy === "analysis_save" ? t("common.saving") : t("common.save")}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </details>
             </div>
-          </div>
+          </FlowStage>
         </div>
 
-        <div className="card">
-          <div className="hd">
-            <h2>{t("project.assemble.title")}</h2>
-            <span className="pill">{allVideosPresent ? t("project.assemble.ready") : t("project.assemble.needs_videos")}</span>
-          </div>
-          <div className="bd" style={{ display: "grid", gap: 12 }}>
-            <div className="row">
+        <FlowStage
+          title={t("project.assemble.title")}
+          hint={t("guide.stage_hint.assemble")}
+          statusLabel={stageStatusLabel(stageDone.assembled, [GUIDE_IDS.assemble])}
+          active={activeGuideId === GUIDE_IDS.assemble}
+          done={stageDone.assembled}
+          guideId="guide-stage-assemble"
+          right={
+            <FocusGuide id={GUIDE_IDS.assemble} activeId={activeGuideId}>
               <button
-                className="btn primary"
+                className={ctaClass(GUIDE_IDS.assemble)}
                 onClick={() =>
                   runJob("job_assemble", { type: "assemble" }, async () => {
                     await refreshProject({ include_full_script: false, include_canon: false });
@@ -989,6 +1138,12 @@ export default function ProjectPage() {
                   ? t("project.assemble.assembling")
                   : t("project.assemble.button")}
               </button>
+            </FocusGuide>
+          }
+        >
+          <div style={{ display: "grid", gap: 12 }}>
+            <div className="row">
+              <span className="pill">{allVideosPresent ? t("project.assemble.ready") : t("project.assemble.needs_videos")}</span>
               <button
                 className="btn"
                 onClick={() =>
@@ -1004,8 +1159,9 @@ export default function ProjectPage() {
             </div>
             {finalSrc ? <video className="video" controls src={finalSrc} /> : <div className="muted">{t("project.final.none")}</div>}
           </div>
-        </div>
+        </FlowStage>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

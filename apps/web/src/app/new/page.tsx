@@ -131,6 +131,9 @@ export default function NewProjectPage() {
                 {loading ? t("common.creating") : t("common.create")}
               </button>
             </div>
+            <div className="muted" style={{ fontSize: 13, textAlign: "end" }}>
+              {t("new.after_create_hint")}
+            </div>
           </form>
         </div>
       </div>
